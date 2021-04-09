@@ -54,6 +54,7 @@ def isDerivative(assetType):
 						, 'Index Future', 'Repurchase Agreement', 'Right')
 
 
+
 def isCash(assetType):
 	return assetType == 'Cash and Equivalents'
 
@@ -79,7 +80,7 @@ def consolidateTaxlotPositions(positions):
 			return sum(map(lambda p: p[field], positions))
 
 
-		def createAddupFields(fields, positions):
+		def updateFields(fields, positions):
 			return {key: addUpField(key, positions) for key in fields}
 
 
@@ -98,12 +99,12 @@ def consolidateTaxlotPositions(positions):
 
 		  , lambda position: mergeDict(
 		  		position	
-		  	  , createAddupFields( ( 'Quantity', 'CostBook', 'MarketValueBook'
-		  		   				   , 'UnrealizedPriceGainLossBook', 'UnrealizedFXGainLossBook'
-		  		   				   , 'AccruedAmortBook', 'AccruedInterestBook'
-		  		   				   )
-		  		   				 , group
-		  		   				 )
+		  	  , updateFields( ( 'Quantity', 'CostBook', 'MarketValueBook'
+		  		   			  , 'UnrealizedPriceGainLossBook', 'UnrealizedFXGainLossBook'
+		  		   			  , 'AccruedAmortBook', 'AccruedInterestBook'
+		  		   			  )
+		  		   			, group
+		  		   			)
 		  	)
 
 		  , lambda group: group[0]
@@ -216,6 +217,48 @@ def getTaxlotCsvHeaders():
 
 
 
+def processMultipartTaxlotReport(outputDir, file):
+	"""
+	[String] output directory,
+	[String] multipart tax lot report (TXT) 
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+	"""
+	def getDate(positions):
+		"""
+		[List] positions => [String] date
+		"""
+		if len(positions) == 0:
+			logger.error('processMultipartTaxlotReport(): no positions')
+			raise ValueError
+
+		return positions[0]['PeriodEndDate']
+	# End of getDate()
+
+
+	def getOutputFilename(positions):
+		"""
+		[List] positions => [String] date
+		"""
+		return join(outputDir, 'taxlot_positions_' + getDate(positions) + \
+					'_' + datetime.now().strftime('%Y%m%d%H%M%S') + '.csv')
+	# End of getOutputFilename()
+
+
+	logger.debug('processMultipartTaxlotReport(): {0}'.format(file))
+
+	positions = list(readMultipartTaxlotReport('utf-16', '\t', file))
+	
+	return \
+	compose(
+		partial(writeCsv, getOutputFilename(positions))
+	  , partial(chain, [getTaxlotCsvHeaders()])
+	  , partial(map, partial(dictToValues, getTaxlotCsvHeaders()))
+	)(positions)
+
+
+
 
 if __name__ == "__main__":
 	import logging.config
@@ -226,10 +269,4 @@ if __name__ == "__main__":
 	parser.add_argument('file', metavar='file', type=str, help="input file")
 
 	logger.debug('main(): start')
-	compose(
-		print
-	  , partial(writeCsv, 'taxlot_positions.csv')
-	  , lambda rows: chain([getTaxlotCsvHeaders()], rows)
-	  , partial(map, partial(dictToValues, getTaxlotCsvHeaders()))
-	  , partial(readMultipartTaxlotReport, 'utf-16', '\t')
-	)(parser.parse_args().file)
+	print(processMultipartTaxlotReport('', parser.parse_args().file))
