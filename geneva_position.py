@@ -44,7 +44,7 @@ def _updateDate(s):
 	try:
 		datetime.strptime(s, '%m/%d/%Y').strftime('%Y-%m-%d')
 	except:
-		print('date:{0}#'.format(s))
+		logger.debug('_updateDate strange date:{0}#'.format(s))
 		return ''
 
 
@@ -236,6 +236,54 @@ def getTaxlotCsvHeaders():
 
 
 
+def getCashLedgerCsvHeaders():
+	return \
+	( 'Portfolio', 'PeriodStartDate', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency'
+	, 'Currency_OpeningBalDesc', 'CurrBegBalLocal', 'CurrBegBalBook', 'GroupWithinCurrency_OpeningBalDesc'
+	, 'GroupWithinCurrencyBegBalLoc', 'GroupWithinCurrencyBegBalBook', 'CashDate', 'TradeDate'
+	, 'SettleDate', 'TransID', 'TranDescription', 'Investment', 'Quantity', 'Price', 'LocalAmount'
+	, 'LocalBalance', 'BookAmount', 'BookBalance', 'GroupWithinCurrency_ClosingBalDesc'
+	, 'GroupWithinCurrencyClosingBalLoc', 'GroupWithinCurrencyClosingBalBook', 'Currency_ClosingBalDesc'
+	, 'CurrClosingBalLocal', 'CurrClosingBalBook'
+	)
+
+
+
+def _changeDateFormat(s):
+	"""
+	[String] s (yyyy-mm-dd) => [String] s (yyyymmdd)
+	"""
+	return '' if s == '' else ''.join(s.split('-'))
+
+
+
+def _changeDateHourFormat(s):
+	"""
+	[String] s (yyyy-mm-dd hh:mm) => [String] s (yyyymmddhhmm)
+	"""
+	return '' if s == '' else \
+	compose(
+		lambda t: _changeDateFormat(t[0]) + ''.join(t[1].split(':'))
+	  , lambda s: s.split(' ')
+	)(s)
+
+
+
+def getOutputFilename(outputDir, prefix, positions):
+	"""
+	[String] prefix, [List] positions => [String] output csv file name
+	"""
+	if len(positions) == 0:
+		logger.error('getOutputFilename(): no positions')
+		raise ValueError
+
+	return join( outputDir
+			   , prefix + '_' + _changeDateFormat(positions[0]['PeriodEndDate']) + '_' \
+			   		+ _changeDateHourFormat(positions[0]['KnowledgeDate']) + '.csv'
+			   )
+
+
+
 def processMultipartTaxlotReport(outputDir, file):
 	"""
 	[String] output directory,
@@ -244,34 +292,13 @@ def processMultipartTaxlotReport(outputDir, file):
 
 	Side effect: create a csv file in the output directory.
 	"""
-	def getDate(positions):
-		"""
-		[List] positions => [String] date
-		"""
-		if len(positions) == 0:
-			logger.error('processMultipartTaxlotReport(): no positions')
-			raise ValueError
-
-		return positions[0]['PeriodEndDate']
-	# End of getDate()
-
-
-	def getOutputFilename(positions):
-		"""
-		[List] positions => [String] date
-		"""
-		return join(outputDir, 'taxlot_positions_' + getDate(positions) + \
-					'_' + datetime.now().strftime('%Y%m%d%H%M%S') + '.csv')
-	# End of getOutputFilename()
-
-
 	logger.debug('processMultipartTaxlotReport(): {0}'.format(file))
 
 	positions = list(readMultipartTaxlotReport('utf-16', '\t', file))
 	
 	return \
 	compose(
-		partial(writeCsv, getOutputFilename(positions))
+		partial(writeCsv, getOutputFilename(outputDir, 'tax_positions', positions))
 	  , partial(chain, [getTaxlotCsvHeaders()])
 	  , partial(map, partial(dictToValues, getTaxlotCsvHeaders()))
 	)(positions)
@@ -339,6 +366,27 @@ def readMultipartCashLedgerReport(encoding, delimiter, file):
 
 
 
+def processMultipartCashLedgerReport(outputDir, file):
+	"""
+	[String] output directory,
+	[String] multipart tax lot report (TXT) 
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+	"""
+	logger.debug('processMultipartCashLedgerReport(): {0}'.format(file))
+
+	positions = list(readMultipartCashLedgerReport('utf-16', '\t', file))
+	
+	return \
+	compose(
+		partial(writeCsv, getOutputFilename(outputDir, 'cash_ledger', positions))
+	  , partial(chain, [getCashLedgerCsvHeaders()])
+	  , partial(map, partial(dictToValues, getCashLedgerCsvHeaders()))
+	)(positions)
+
+
+
 
 if __name__ == "__main__":
 	import logging.config
@@ -350,4 +398,4 @@ if __name__ == "__main__":
 
 	logger.debug('main(): start')
 	# print(processMultipartTaxlotReport('', parser.parse_args().file))
-	print(list(readMultipartCashLedgerReport('utf-16', '\t', parser.parse_args().file)))
+	print(processMultipartCashLedgerReport('', parser.parse_args().file))
