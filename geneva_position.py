@@ -29,7 +29,7 @@ def numberFromString(s):
 
 
 
-def updateNumber(s):
+def _updateNumber(s):
 	"""
 	[String] s => either a String or Float
 	"""
@@ -37,12 +37,31 @@ def updateNumber(s):
 
 
 
+def _updateDate(s):
+	"""
+	[String] s (date, mm/dd/yyyy) => [String] s (yyyy-mm-dd)
+	"""
+	try:
+		datetime.strptime(s, '%m/%d/%Y').strftime('%Y-%m-%d')
+	except:
+		print('date:{0}#'.format(s))
+		return ''
+
+
+
+def updateDateForFields(fields, p):
+	"""
+	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
+	"""
+	return {key: _updateDate(p[key]) if key in fields else p[key] for key in p}
+
+
+
 def updateNumberForFields(fields, p):
 	"""
 	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
 	"""
-	return \
-	{key: updateNumber(p[key]) if key in fields else p[key] for key in p}
+	return {key: _updateNumber(p[key]) if key in fields else p[key] for key in p}
 
 
 
@@ -259,6 +278,67 @@ def processMultipartTaxlotReport(outputDir, file):
 
 
 
+def readCashLedgerReportFromLines(lines):
+	"""
+	[Iterable] ([List]) lines => [Iterable] ([Dictionary]) positions
+	"""
+	def lognContinue(positions, metaData):
+		logger.debug('readCashLedgerReportFromLines(): Portfolio {0}'.format(
+						metaData.get('Portfolio', '')))
+		return positions, metaData
+
+
+	def addMetaDataToPosition(positions, metaData):
+		"""
+		[Iterable] positions, [Dictionary] metaData
+			=> [Iterable] positions
+		"""
+		data = { 'Portfolio': metaData.get('Portfolio', '')
+			   , 'PeriodStartDate': metaData.get('PeriodStartDate', '')
+			   , 'PeriodEndDate': metaData.get('PeriodEndDate', '')
+			   , 'KnowledgeDate': metaData.get('KnowledgeDate', '')
+			   , 'BookCurrency' : metaData.get('BookCurrency', '')
+			   }
+
+		return map(lambda p: mergeDict(p, data), positions)
+	# End of addMetaDataToPosition()
+
+
+	return \
+	compose(
+		partial( map
+			   , partial(updateDateForFields, ('CashDate', 'TradeDate', 'SettleDate'))
+			   )
+	  , partial( map
+			   , partial( updateNumberForFields
+			   			, ( 'CurrBegBalLocal', 'CurrBegBalBook', 'GroupWithinCurrencyBegBalLoc'
+			   			  , 'GroupWithinCurrencyBegBalBook', 'Quantity', 'Price', 'LocalAmount'
+			   			  , 'LocalBalance', 'BookAmount', 'BookBalance', 'GroupWithinCurrencyClosingBalLoc'
+			   			  , 'GroupWithinCurrencyClosingBalBook', 'CurrClosingBalLocal', 'CurrClosingBalBook'
+			   			  )
+						)
+			   )
+	  , lambda t: addMetaDataToPosition(t[0], t[1])
+	  , lambda t: lognContinue(t[0], t[1])
+	  , readTxtReportFromLines
+	)(lines)
+
+
+
+def readMultipartCashLedgerReport(encoding, delimiter, file):
+	"""
+	[String] encoding, [String] delimiter, [String] filename
+		=> [Iterable] ([Dictionary]) positions
+	"""
+	return compose(
+		chain.from_iterable
+	  , partial(map, readCashLedgerReportFromLines)
+	  , groupMultipartReportLines
+	  , txtReportToLines
+	)(encoding, delimiter, file)
+
+
+
 
 if __name__ == "__main__":
 	import logging.config
@@ -269,4 +349,5 @@ if __name__ == "__main__":
 	parser.add_argument('file', metavar='file', type=str, help="input file")
 
 	logger.debug('main(): start')
-	print(processMultipartTaxlotReport('', parser.parse_args().file))
+	# print(processMultipartTaxlotReport('', parser.parse_args().file))
+	print(list(readMultipartCashLedgerReport('utf-16', '\t', parser.parse_args().file)))
