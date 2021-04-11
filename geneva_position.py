@@ -4,7 +4,7 @@
 # 
 from geneva.report import groupMultipartReportLines, txtReportToLines \
 						, readTxtReportFromLines, updatePositionWithFunctionMap
-from steven_utils.utility import mergeDict, writeCsv, dictToValues
+from steven_utils.utility import mergeDict
 from toolz.functoolz import compose
 from toolz.itertoolz import groupby as groupbyToolz
 from toolz.dicttoolz import valmap
@@ -145,14 +145,14 @@ def consolidateTaxlotPositions(positions):
 
 
 
-def readTaxlotReportFromLines(lines):
+def _readTaxlotReportFromLines(lines):
 	"""
 	[Iterable] ([List]) lines => [Iterable] positions
 
 	positions updated, meta data unchanged.
 	"""
 	def lognContinue(positions, metaData):
-		logger.debug('readTaxlotReportFromLines(): Portfolio {0}'.format(
+		logger.debug('_readTaxlotReportFromLines(): Portfolio {0}'.format(
 						metaData['Portfolio']))
 		return positions, metaData
 
@@ -206,111 +206,12 @@ def readTaxlotReportFromLines(lines):
 
 
 
-"""
-	[String] encoding, [String] delimiter, [String] filename, 
-		=> [Iterable] ([Dictionary] position)
-
-	Read a multipart tax lot appraisal report (txt format), enrich it 
-	with meta data, and return all positions.
-
-	Some of the positions consolidated.
-"""
-readMultipartTaxlotReport = compose(
-	chain.from_iterable
-  , partial(map, readTaxlotReportFromLines)
-  , groupMultipartReportLines
-  , txtReportToLines
-)
-
-
-
-def getTaxlotCsvHeaders():
-	return \
-	( 'Portfolio', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency', 'InvestID'
-	, 'SortByDescription', 'ThenByDescription', 'InvestmentDescription'
-	, 'TaxLotDescription', 'TaxLotID', 'TaxLotDate', 'Quantity', 'OriginalFace'
-	, 'UnitCost', 'MarketPrice', 'CostBook', 'MarketValueBook', 'UnrealizedPriceGainLossBook'
-	, 'UnrealizedFXGainLossBook', 'AccruedAmortBook', 'AccruedInterestBook'
-	# , 'ExtendedDescription', 'Description3'
-	)
-
-
-
-def getCashLedgerCsvHeaders():
-	return \
-	( 'Portfolio', 'PeriodStartDate', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency'
-	, 'Currency_OpeningBalDesc', 'CurrBegBalLocal', 'CurrBegBalBook', 'GroupWithinCurrency_OpeningBalDesc'
-	, 'GroupWithinCurrencyBegBalLoc', 'GroupWithinCurrencyBegBalBook', 'CashDate', 'TradeDate'
-	, 'SettleDate', 'TransID', 'TranDescription', 'Investment', 'Quantity', 'Price', 'LocalAmount'
-	, 'LocalBalance', 'BookAmount', 'BookBalance', 'GroupWithinCurrency_ClosingBalDesc'
-	, 'GroupWithinCurrencyClosingBalLoc', 'GroupWithinCurrencyClosingBalBook', 'Currency_ClosingBalDesc'
-	, 'CurrClosingBalLocal', 'CurrClosingBalBook'
-	)
-
-
-
-def _changeDateFormat(s):
-	"""
-	[String] s (yyyy-mm-dd) => [String] s (yyyymmdd)
-	"""
-	return '' if s == '' else ''.join(s.split('-'))
-
-
-
-def _changeDateHourFormat(s):
-	"""
-	[String] s (yyyy-mm-dd hh:mm) => [String] s (yyyymmddhhmm)
-	"""
-	return '' if s == '' else \
-	compose(
-		lambda t: _changeDateFormat(t[0]) + ''.join(t[1].split(':'))
-	  , lambda s: s.split(' ')
-	)(s)
-
-
-
-def getOutputFilename(outputDir, prefix, positions):
-	"""
-	[String] prefix, [List] positions => [String] output csv file name
-	"""
-	if len(positions) == 0:
-		logger.error('getOutputFilename(): no positions')
-		raise ValueError
-
-	return join( outputDir
-			   , prefix + '_' + _changeDateFormat(positions[0]['PeriodEndDate']) + '_' \
-			   		+ _changeDateHourFormat(positions[0]['KnowledgeDate']) + '.csv'
-			   )
-
-
-
-def processMultipartTaxlotReport(outputDir, file):
-	"""
-	[String] output directory,
-	[String] multipart tax lot report (TXT) 
-		=> [String] output csv
-
-	Side effect: create a csv file in the output directory.
-	"""
-	logger.debug('processMultipartTaxlotReport(): {0}'.format(file))
-
-	positions = list(readMultipartTaxlotReport('utf-16', '\t', file))
-	
-	return \
-	compose(
-		partial(writeCsv, getOutputFilename(outputDir, 'tax_positions', positions))
-	  , partial(chain, [getTaxlotCsvHeaders()])
-	  , partial(map, partial(dictToValues, getTaxlotCsvHeaders()))
-	)(positions)
-
-
-
-def readCashLedgerReportFromLines(lines):
+def _readCashLedgerReportFromLines(lines):
 	"""
 	[Iterable] ([List]) lines => [Iterable] ([Dictionary]) positions
 	"""
 	def lognContinue(positions, metaData):
-		logger.debug('readCashLedgerReportFromLines(): Portfolio {0}'.format(
+		logger.debug('_readCashLedgerReportFromLines(): Portfolio {0}'.format(
 						metaData.get('Portfolio', '')))
 		return positions, metaData
 
@@ -352,6 +253,25 @@ def readCashLedgerReportFromLines(lines):
 
 
 
+def readMultipartTaxlotReport(encoding, delimiter, file):
+	"""
+	[String] encoding, [String] delimiter, [String] filename, 
+		=> [Iterable] ([Dictionary] position)
+
+	Read a multipart tax lot appraisal report (txt format), enrich it 
+	with meta data, and return all positions.
+
+	Some of the positions consolidated.
+	"""
+	return compose(
+		chain.from_iterable
+	  , partial(map, _readTaxlotReportFromLines)
+	  , groupMultipartReportLines
+	  , txtReportToLines
+	)(encoding, delimiter, file)
+
+
+
 def readMultipartCashLedgerReport(encoding, delimiter, file):
 	"""
 	[String] encoding, [String] delimiter, [String] filename
@@ -359,43 +279,7 @@ def readMultipartCashLedgerReport(encoding, delimiter, file):
 	"""
 	return compose(
 		chain.from_iterable
-	  , partial(map, readCashLedgerReportFromLines)
+	  , partial(map, _readCashLedgerReportFromLines)
 	  , groupMultipartReportLines
 	  , txtReportToLines
 	)(encoding, delimiter, file)
-
-
-
-def processMultipartCashLedgerReport(outputDir, file):
-	"""
-	[String] output directory,
-	[String] multipart tax lot report (TXT) 
-		=> [String] output csv
-
-	Side effect: create a csv file in the output directory.
-	"""
-	logger.debug('processMultipartCashLedgerReport(): {0}'.format(file))
-
-	positions = list(readMultipartCashLedgerReport('utf-16', '\t', file))
-	
-	return \
-	compose(
-		partial(writeCsv, getOutputFilename(outputDir, 'cash_ledger', positions))
-	  , partial(chain, [getCashLedgerCsvHeaders()])
-	  , partial(map, partial(dictToValues, getCashLedgerCsvHeaders()))
-	)(positions)
-
-
-
-
-if __name__ == "__main__":
-	import logging.config
-	logging.config.fileConfig('logging.config', disable_existing_loggers=False)
-	
-	import argparse
-	parser = argparse.ArgumentParser(description='handle fact positions')
-	parser.add_argument('file', metavar='file', type=str, help="input file")
-
-	logger.debug('main(): start')
-	# print(processMultipartTaxlotReport('', parser.parse_args().file))
-	print(processMultipartCashLedgerReport('', parser.parse_args().file))
