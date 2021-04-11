@@ -87,8 +87,8 @@ def consolidateTaxlotPositions(positions):
 	into one.
 	"""
 	def notForConsolidate(position):
-		return isCash(position['SortByDescription']) or \
-				isDerivative(position['SortByDescription'])
+		return isCash(position['ThenByDescription']) or \
+				isDerivative(position['ThenByDescription'])
 
 
 	def consolidate(group):
