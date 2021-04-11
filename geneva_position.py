@@ -42,7 +42,7 @@ def _updateDate(s):
 	[String] s (date, mm/dd/yyyy) => [String] s (yyyy-mm-dd)
 	"""
 	try:
-		datetime.strptime(s, '%m/%d/%Y').strftime('%Y-%m-%d')
+		return datetime.strptime(s, '%m/%d/%Y').strftime('%Y-%m-%d')
 	except:
 		logger.debug('_updateDate strange date:{0}#'.format(s))
 		return ''
@@ -232,6 +232,14 @@ def _readCashLedgerReportFromLines(lines):
 	# End of addMetaDataToPosition()
 
 
+	def debug(position):
+		""" position => position """
+		if position['Portfolio'] == '40017' and position['TranDescription'] == 'Mature':
+			print(position)
+
+		return position
+
+
 	return \
 	compose(
 		partial( map
@@ -246,6 +254,7 @@ def _readCashLedgerReportFromLines(lines):
 			   			  )
 						)
 			   )
+	  , partial(map, debug)
 	  , lambda t: addMetaDataToPosition(t[0], t[1])
 	  , lambda t: lognContinue(t[0], t[1])
 	  , readTxtReportFromLines
