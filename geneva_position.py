@@ -84,21 +84,6 @@ updatePercentageForFields = partial(
 )
 
 
-# def updateDateForFields(fields, p):
-# 	"""
-# 	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
-# 	"""
-# 	return {key: _updateDate(p[key]) if key in fields else p[key] for key in p}
-
-
-
-# def updateNumberForFields(fields, p):
-# 	"""
-# 	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
-# 	"""
-# 	return {key: _updateNumber(p[key]) if key in fields else p[key] for key in p}
-
-
 
 def isDerivative(assetType):
 	"""
@@ -334,7 +319,7 @@ def _readDividendReceivableReportFromLines(lines):
 
 
 
-def readMultipartReport(mappingFunc, encoding, delimiter, file):
+def _readMultipartReport(mappingFunc, encoding, delimiter, file):
 	"""
 	[Func] ([Iterable] ([List]) lines => [Iterable] ([Dictionary] positions)),
 	[String] encoding, 
@@ -364,7 +349,7 @@ def readMultipartReport(mappingFunc, encoding, delimiter, file):
 	Some of the positions consolidated.
 """
 readMultipartTaxlotReport = partial(
-	readMultipartReport
+	_readMultipartReport
   , _readTaxlotReportFromLines
 )
 
@@ -378,7 +363,7 @@ readMultipartTaxlotReport = partial(
 	with meta data, and return all positions.
 """
 readMultipartCashLedgerReport = partial(
-	readMultipartReport
+	_readMultipartReport
   , _readCashLedgerReportFromLines
 )
 
@@ -392,7 +377,7 @@ readMultipartCashLedgerReport = partial(
 	with meta data, and return all positions.
 """
 readMultipartDividendReceivableReport = partial(
-	readMultipartReport
+	_readMultipartReport
   , _readDividendReceivableReportFromLines
 )
 

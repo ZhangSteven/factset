@@ -3,10 +3,11 @@
 # Handles Geneva position data for FactSet upload.
 # 
 from factset.data import getGenevaPositions, getSecurityIdAndType \
-						, getPortfolioNames
+						, getPortfolioNames, getGenevaDividendReceivable
 from steven_utils.utility import mergeDict
+from functools import partial
 from os.path import join
-import logging, re
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -204,11 +205,14 @@ def _getPerSharePrincipal(position):
 
 
 
-def _getPerShareIncome(position):
+def _getPerShareIncome(dividendReceivable, position):
 	"""
 	[Dictionary] geneva position => [Float] income per share
 	"""
-	return 0
+	try:
+		return dividendReceivable[position['TaxLotDescription']]/_getQuantity(position)
+	except KeyError:
+		return 0
 
 
 
@@ -300,9 +304,11 @@ def _changeDateFormat(dt):
 
 
 
-def _factsetPosition(position):
+def _factsetPosition(dividendReceivable, position):
 	"""
-	[Dictionary] position => [Dictionary] factset position
+	[Dictionary] dividend receivable,
+	[Dictionary] position 
+		=> [Dictionary] factset position
 	"""
 	logger.debug('_factsetPosition(): {0}, {1}'.format(
 				_getPortfolioCode(position), _getInvestId(position)))
@@ -322,7 +328,7 @@ def _factsetPosition(position):
 	, 'Price ISO': _getLocalCurrency(position)
 	, 'Per Share Accrued Interest': _getPerShareAccruedInterest(position)
 	, 'Per Share Principal': _getPerSharePrincipal(position)
-	, 'Per Share Income': _getPerShareIncome(position)
+	, 'Per Share Income': _getPerShareIncome(dividendReceivable, position)
 	, 'Total Cost': _getTotalCost(position)
 	, 'Ending Market Value': _getEndingMarketValue(position)
 	, 'Strategy': _getStrategy(position)
@@ -338,7 +344,9 @@ def getPositions(date, portfolio):
 		=> [Iterable] ([Dictionary]) factset positions
 	"""
 	logger.debug('getPositions(): date={0}, portfolio={1}'.format(date, portfolio))
-	return map(_factsetPosition, getGenevaPositions(date, portfolio))
+	return map( partial(_factsetPosition, getGenevaDividendReceivable(date, portfolio))
+			  , getGenevaPositions(date, portfolio)
+			  )
 
 
 
