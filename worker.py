@@ -1,10 +1,11 @@
 # coding=utf-8
 #
-# Handles Geneva position data for FactSet upload.
+# For scheduled jobs
 # 
 from factset.geneva_position import readMultipartCashLedgerReport \
 								, readMultipartTaxlotReport \
 								, readMultipartDividendReceivableReport
+from factset.data import getGenevaPositions
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
 from functools import partial
@@ -156,12 +157,18 @@ def _getDividendReceivableCsvHeaders():
 if __name__ == "__main__":
 	import logging.config
 	logging.config.fileConfig('logging.config', disable_existing_loggers=False)
-	
-	import argparse
-	parser = argparse.ArgumentParser(description='handle fact positions')
-	parser.add_argument('file', metavar='file', type=str, help="input file")
 
 	logger.debug('main(): start')
+
+	import argparse
+	parser = argparse.ArgumentParser(description='handle fact positions')
+	# parser.add_argument('file', metavar='file', type=str, help="input file")
 	# print(processMultipartTaxlotReport('', parser.parse_args().file))
 	# print(processMultipartCashLedgerReport('', parser.parse_args().file))
-	print(processMultipartDividendReceivableReport('', parser.parse_args().file))
+	# print(processMultipartDividendReceivableReport('', parser.parse_args().file))
+
+	parser.add_argument('date', metavar='date', type=str, help="position date (yyyy-mm-dd)")
+	parser.add_argument('portfolio', metavar='portfolio', type=str, help="portfolio id")
+	print(getGenevaPositions( parser.parse_args().date
+							, parser.parse_args().portfolio
+							))

@@ -2,7 +2,7 @@
 #
 # Handle data store operations.
 # 
-from factset.geneva_positions import readMultipartTaxlotReport
+from factset.geneva_position import readMultipartTaxlotReport
 from factset.utility import getDataDirectory
 from steven_utils.file import getFiles
 from toolz.functoolz import compose
@@ -121,9 +121,9 @@ def _getGenevaPositionsFromFile(date):
 	"""
 	[String] date (yyyy-mm-dd) => [List] ([Dictionary]) positions
 	"""
-	logger.debug('getGenevaPositionsFromFile(): {0}'.format(date))
+	logger.debug('_getGenevaPositionsFromFile(): {0}'.format(date))
 	return compose(
 		list
-	  , getGenevaPositionsFromFile
+	  , partial(readMultipartTaxlotReport, 'utf-16', '\t')
 	  , _getGenevaTaxlotFile
 	)(date)
