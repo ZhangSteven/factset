@@ -99,7 +99,17 @@ def isCash(assetType):
 
 
 
-def consolidateTaxlotPositions(positions):
+def _addUpField(field, positions):
+	return sum(map(lambda p: p[field], positions))
+
+
+
+def _updateFields(fields, positions):
+	return {key: _addUpField(key, positions) for key in fields}
+
+
+
+def _consolidateTaxlotPositions(positions):
 	"""
 	[Iterable] positions => [Iterable] positions
 
@@ -111,42 +121,32 @@ def consolidateTaxlotPositions(positions):
 				isDerivative(position['ThenByDescription'])
 
 
+	def getUnitCost(positions):
+		quantity = _addUpField('Quantity', positions)
+		return positions[0]['UnitCost'] if quantity == 0 else \
+				sum(map(lambda p: p['Quantity']*p['UnitCost'], positions))/quantity
+
+
 	def consolidate(group):
 		"""
 		[List] group (positions) => [Dictionary] position
 		"""
-		def addUpField(field, positions):
-			return sum(map(lambda p: p[field], positions))
-
-
-		def updateFields(fields, positions):
-			return {key: addUpField(key, positions) for key in fields}
-
-
-		def getUnitCost(positions):
-			quantity = addUpField('Quantity', positions)
-			return positions[0]['UnitCost'] if quantity == 0 else \
-					sum(map(lambda p: p['Quantity']*p['UnitCost'], positions))/quantity
-		# End of getUnitCost()
-
 		return \
 		compose(
 			lambda position: mergeDict(
-				position
-			  , {'UnitCost': getUnitCost(group)}
-			)
-
-		  , lambda position: mergeDict(
-		  		position	
-		  	  , updateFields( ( 'Quantity', 'CostBook', 'MarketValueBook'
-		  		   			  , 'UnrealizedPriceGainLossBook', 'UnrealizedFXGainLossBook'
-		  		   			  , 'AccruedAmortBook', 'AccruedInterestBook'
-		  		   			  )
-		  		   			, group
-		  		   			)
+		  		position
+		  	  , _updateFields( ( 'Quantity', 'CostBook', 'MarketValueBook'
+		  		   			   , 'UnrealizedPriceGainLossBook', 'UnrealizedFXGainLossBook'
+		  		   			   , 'AccruedAmortBook', 'AccruedInterestBook'
+		  		   			   )
+		  		   			 , group
+		  		   			 )
 		  	)
 
-		  , lambda group: group[0]
+		  , lambda group: mergeDict(
+		  		group[0]
+		  	  , {'UnitCost': getUnitCost(group)}
+		  	)
 		)(group)
 	# End of consolidate()
 
@@ -209,7 +209,7 @@ def _readTaxlotReportFromLines(lines):
 
 	return \
 	compose(
-		consolidateTaxlotPositions
+		_consolidateTaxlotPositions
 	  , partial(map, addInvestId)
 	  , partial( map
 			   , partial( updateNumberForFields
@@ -273,6 +273,35 @@ def _readCashLedgerReportFromLines(lines):
 
 
 
+def _consolidateDividendReceivable(positions):
+	"""
+	[Iterable] ([Dictionary]) positions => [Iterable] positions
+
+	Consolidate positions of the same security into one.
+	"""
+	def consolidate(group):
+		return mergeDict(
+			group[0]
+		  , _updateFields( ( 'ExDateQuantity', 'LocalGrossDividendRecPay'
+		  				   , 'LocalWHTaxPayable', 'LocalNetDividendRecPay'
+		  				   , 'BookGrossDividendRecPay', 'BookWHTaxPayable'
+		  				   , 'BookNetDividendRecPay', 'UnrealizedFXGainLoss'
+		  				   , 'LocalReclaimReceivable', 'BookReclaimReceivable'
+		  				   , 'LocalReliefReceivable', 'BookReliefReceivable'
+		  				   )
+		  				 , group
+		  				 )
+		)
+	# End of consolidate()
+
+	return compose(
+		lambda d: d.values()
+	  , partial(valmap, consolidate)
+	  , partial(groupbyToolz, lambda p: p['Investment'])
+	)(positions)
+
+
+
 def _readDividendReceivableReportFromLines(lines):
 	"""
 	[Iterable] ([List]) lines => [Iterable] ([Dictionary]) positions
@@ -300,7 +329,8 @@ def _readDividendReceivableReportFromLines(lines):
 
 	return \
 	compose(
-		partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
+		_consolidateDividendReceivable
+	  , partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
 	  , partial(map, partial(updatePercentageForFields, ('WHTaxRate', )))
 	  , partial( map
 			   , partial( updateNumberForFields
@@ -380,36 +410,3 @@ readMultipartDividendReceivableReport = partial(
 	_readMultipartReport
   , _readDividendReceivableReportFromLines
 )
-
-
-
-# def readMultipartTaxlotReport(encoding, delimiter, file):
-# 	"""
-# 	[String] encoding, [String] delimiter, [String] filename, 
-# 		=> [Iterable] ([Dictionary] position)
-
-# 	Read a multipart tax lot appraisal report (txt format), enrich it 
-# 	with meta data, and return all positions.
-
-# 	Some of the positions consolidated.
-# 	"""
-# 	return compose(
-# 		chain.from_iterable
-# 	  , partial(map, _readTaxlotReportFromLines)
-# 	  , groupMultipartReportLines
-# 	  , txtReportToLines
-# 	)(encoding, delimiter, file)
-
-
-
-# def readMultipartCashLedgerReport(encoding, delimiter, file):
-# 	"""
-# 	[String] encoding, [String] delimiter, [String] filename
-# 		=> [Iterable] ([Dictionary]) positions
-# 	"""
-# 	return compose(
-# 		chain.from_iterable
-# 	  , partial(map, _readCashLedgerReportFromLines)
-# 	  , groupMultipartReportLines
-# 	  , txtReportToLines
-# 	)(encoding, delimiter, file)

@@ -2,10 +2,14 @@
 #
 # Handle data store operations.
 # 
-from factset.geneva_position import readMultipartTaxlotReport
+from factset.geneva_position import readMultipartTaxlotReport \
+								, readMultipartDividendReceivableReport
 from factset.utility import getDataDirectory
 from steven_utils.file import getFiles
+from steven_utils.utility import mergeDict
 from toolz.functoolz import compose
+from toolz.itertoolz import groupby as groupbyToolz
+from toolz.dicttoolz import valmap
 from functools import lru_cache, partial
 from os.path import join
 import logging, re
@@ -36,7 +40,12 @@ def getGenevaDividendReceivable(date, portfolio):
 
 	consolidate based on "investment description".
 	"""
-	return {}
+	logger.debug('getGenevaDividendReceivable(): {0}, {1}'.format(date, portfolio))
+	return compose(
+		list
+	  , partial(filter, lambda p: p['Portfolio'] == portfolio)
+	  , _getGenevaDividendReceivableFromFile
+	)(date)
 
 
 
@@ -113,7 +122,17 @@ _getGenevaTaxlotFile = partial(
 	_getGenevaFileWithDate
   , lambda fn: fn.lower().startswith('all funds tax lot')
 )
-	  		   
+
+
+
+""" 
+	[String] date => [String] dividend receivable payable file 
+"""
+_getGenevaDividendReceivableFile = partial(
+	_getGenevaFileWithDate
+  , lambda fn: fn.lower().startswith('all funds dividend receivable')
+)
+
 
 
 @lru_cache(maxsize=3)
@@ -126,4 +145,18 @@ def _getGenevaPositionsFromFile(date):
 		list
 	  , partial(readMultipartTaxlotReport, 'utf-16', '\t')
 	  , _getGenevaTaxlotFile
+	)(date)
+
+
+
+@lru_cache(maxsize=3)
+def _getGenevaDividendReceivableFromFile(date):
+	"""
+	[String] date (yyyy-mm-dd) => [List] ([Dictionary]) positions
+	"""
+	logger.debug('_getGenevaDividendReceivableFromFile(): {0}'.format(date))
+	return compose(
+		list
+	  , partial(readMultipartDividendReceivableReport, 'utf-16', '\t')
+	  , _getGenevaDividendReceivableFile
 	)(date)

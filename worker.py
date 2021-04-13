@@ -5,7 +5,7 @@
 from factset.geneva_position import readMultipartCashLedgerReport \
 								, readMultipartTaxlotReport \
 								, readMultipartDividendReceivableReport
-from factset.data import getGenevaPositions
+from factset.data import getGenevaPositions, getGenevaDividendReceivable
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
 from functools import partial
@@ -172,3 +172,7 @@ if __name__ == "__main__":
 	print(getGenevaPositions( parser.parse_args().date
 							, parser.parse_args().portfolio
 							))
+	# print(getGenevaDividendReceivable( parser.parse_args().date
+	# 								 , parser.parse_args().portfolio))
+	# print(getGenevaDividendReceivable( parser.parse_args().date
+	# 								 , '11490-B'))
