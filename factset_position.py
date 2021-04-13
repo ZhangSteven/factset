@@ -4,6 +4,7 @@
 # 
 from factset.data import getGenevaPositions, getSecurityIdAndType \
 						, getPortfolioNames
+from steven_utils.utility import mergeDict
 from os.path import join
 import logging, re
 logger = logging.getLogger(__name__)
@@ -47,14 +48,6 @@ def _getQuantity(position):
 	[Dictionary] geneva position => [Float] quantity
 	"""
 	return position['Quantity']
-
-
-
-def _getGenevaAssetType(position):
-	"""
-	[Dictionary] geneva position => [String] Geneva Asset Type
-	"""
-	return getSecurityIdAndType()[_getInvestId(position)]['AssetType Description']
 
 
 
@@ -132,7 +125,7 @@ def _getSecurityName(position):
 	"""
 	[Dictionary] geneva position => [String] security name
 	"""
-	return getSecurityIdAndType()[_getInvestId(position)]['Description']
+	return position['TaxLotDescription']
 
 
 
@@ -170,7 +163,11 @@ def _getMarketPrice(position):
 	[Dictionary] geneva position 
 		=> [Float] price, or [String] 'NA'
 	"""
-	return ''
+	assetClass, assetType = _getAssetClassAndType(position)
+	if assetClass == 'Cash':
+		return 1.0
+
+	return position['MarketPrice']
 
 
 
@@ -178,7 +175,7 @@ def _getLocalCurrency(position):
 	"""
 	[Dictionary] geneva position => [String] local currency
 	"""
-	return ''
+	return getSecurityIdAndType()[_getInvestId(position)]['BifurcationCurrency Code']
 
 
 
@@ -186,7 +183,11 @@ def _getPerShareAccruedInterest(position):
 	"""
 	[Dictionary] geneva position => [Float] accrued interest per share
 	"""
-	return 0
+	if position['AccruedInterestBook'] == 0:
+		return 0
+	else:
+		logger.error('_getPerShareAccruedInterest(): not supported')
+		raise ValueError
 
 
 
@@ -194,7 +195,12 @@ def _getPerSharePrincipal(position):
 	"""
 	[Dictionary] geneva position => [Float] principal return per share
 	"""
-	return 0
+	assetClass, assetType = _getAssetClassAndType(position)
+	if assetClass in ('Cash', 'Equity', 'Fund'):
+		return 0
+	else:
+		logger.error('_getPerSharePrincipal(): not supported')
+		raise ValueError
 
 
 
@@ -210,7 +216,15 @@ def _getTotalCost(position):
 	"""
 	[Dictionary] geneva position => [Float] total cost
 	"""
-	return 0
+	assetClass, assetType = _getAssetClassAndType(position)
+	if assetClass == 'Cash':
+		return _getQuantity(position)
+
+	if assetClass in ('Equity', 'Fund'):
+		return _getQuantity(position) * position['UnitCost']
+	else:
+		logger.error('_getEndingMarketValue(): not supported')
+		raise ValueError
 
 
 
@@ -218,7 +232,18 @@ def _getEndingMarketValue(position):
 	"""
 	[Dictionary] geneva position => [Float] ending market value
 	"""
-	return 0
+	assetClass, assetType = _getAssetClassAndType(position)
+	if assetClass == 'Cash':
+		return _getQuantity(position)
+	
+	if _getMarketPrice(position) == 'NA':
+		return 'NA'
+
+	if assetClass in ('Equity', 'Fund'):
+		return _getQuantity(position) * _getMarketPrice(position)
+	else:
+		logger.error('_getEndingMarketValue(): not supported')
+		raise ValueError
 
 
 
@@ -226,7 +251,15 @@ def _getStrategy(position):
 	"""
 	[Dictionary] geneva position => [String] stragegy (HTM, AFS)
 	"""
-	return ''
+	assetClass, assetType = _getAssetClassAndType(position)
+	if assetClass == 'Cash':
+		return ''
+
+	if assetClass in ('Equity', 'Fund'):
+		return 'AFS'
+	else:
+		logger.error('_getStrategy(): not supported')
+		raise ValueError
 
 
 
@@ -234,7 +267,13 @@ def _getContractSize(position):
 	"""
 	[Dictionary] geneva position => [Float] futures contract size
 	"""
-	return 'NA'
+	assetClass, assetType = _getAssetClassAndType(position)
+
+	if assetClass in ('Equity', 'Fund'):
+		return 'NA'
+	else:
+		logger.error('_getContractSize(): not supported')
+		raise ValueError
 
 
 
@@ -243,7 +282,13 @@ def _getUnderlyingId(position):
 	[Dictionary] geneva position
 		=> [String] futures underlying security
 	"""
-	return ''
+	assetClass, assetType = _getAssetClassAndType(position)
+
+	if assetClass in ('Equity', 'Fund'):
+		return ''
+	else:
+		logger.error('_getUnderlyingId(): not supported')
+		raise ValueError
 
 
 
@@ -275,8 +320,14 @@ def _factsetPosition(position):
 	, 'Shares': _getQuantity(position)
 	, 'Price': _getMarketPrice(position)
 	, 'Price ISO': _getLocalCurrency(position)
-	, 'Ending Market Value': _getEndingMarketValue(position)
+	, 'Per Share Accrued Interest': _getPerShareAccruedInterest(position)
+	, 'Per Share Principal': _getPerSharePrincipal(position)
 	, 'Per Share Income': _getPerShareIncome(position)
+	, 'Total Cost': _getTotalCost(position)
+	, 'Ending Market Value': _getEndingMarketValue(position)
+	, 'Strategy': _getStrategy(position)
+	, 'Contract Size': _getContractSize(position)
+	, 'Underlying ID': _getUnderlyingId(position)
 	}
 
 

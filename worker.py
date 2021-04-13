@@ -3,7 +3,8 @@
 # Handles Geneva position data for FactSet upload.
 # 
 from factset.geneva_position import readMultipartCashLedgerReport \
-								, readMultipartTaxlotReport
+								, readMultipartTaxlotReport \
+								, readMultipartDividendReceivableReport
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
 from functools import partial
@@ -52,6 +53,27 @@ def processMultipartCashLedgerReport(outputDir, file):
 		partial(writeCsv, _getOutputFilename(outputDir, 'cash_ledger', positions))
 	  , partial(chain, [_getCashLedgerCsvHeaders()])
 	  , partial(map, partial(dictToValues, _getCashLedgerCsvHeaders()))
+	)(positions)
+
+
+
+def processMultipartDividendReceivableReport(outputDir, file):
+	"""
+	[String] output directory,
+	[String] multipart tax lot report (TXT) 
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+	"""
+	logger.debug('processMultipartDividendReceivableReport(): {0}'.format(file))
+
+	positions = list(readMultipartDividendReceivableReport('utf-16', '\t', file))
+	
+	return \
+	compose(
+		partial(writeCsv, _getOutputFilename(outputDir, 'dividend_receivable', positions))
+	  , partial(chain, [_getDividendReceivableCsvHeaders()])
+	  , partial(map, partial(dictToValues, _getDividendReceivableCsvHeaders()))
 	)(positions)
 
 
@@ -116,6 +138,20 @@ def _getCashLedgerCsvHeaders():
 
 
 
+def _getDividendReceivableCsvHeaders():
+	return \
+	( 'Portfolio', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency'
+	, 'SortByDescription', 'LocalAccountingName', 'Currency', 'Textbox96'
+	, 'Investment', 'TransID', 'EXDate', 'ExDateQuantity', 'LocalCurrency'
+	, 'LocalGrossDividendRecPay', 'WHTaxRate', 'LocalWHTaxPayable'
+	, 'LocalNetDividendRecPay', 'BookGrossDividendRecPay', 'BookWHTaxPayable'
+	, 'BookNetDividendRecPay', 'UnrealizedFXGainLoss', 'PayDate', 'LocalPerShareAmount'
+	, 'LocalReclaimReceivable', 'BookReclaimReceivable', 'LocalReliefReceivable'
+	, 'BookReliefReceivable'
+	)
+
+
+
 
 if __name__ == "__main__":
 	import logging.config
@@ -126,5 +162,6 @@ if __name__ == "__main__":
 	parser.add_argument('file', metavar='file', type=str, help="input file")
 
 	logger.debug('main(): start')
-	print(processMultipartTaxlotReport('', parser.parse_args().file))
+	# print(processMultipartTaxlotReport('', parser.parse_args().file))
 	# print(processMultipartCashLedgerReport('', parser.parse_args().file))
+	print(processMultipartDividendReceivableReport('', parser.parse_args().file))

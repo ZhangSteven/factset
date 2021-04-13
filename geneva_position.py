@@ -1,6 +1,6 @@
 # coding=utf-8
 #
-# Handles Geneva position data for FactSet upload.
+# Provide methods to read Geneva data.
 # 
 from geneva.report import groupMultipartReportLines, txtReportToLines \
 						, readTxtReportFromLines, updatePositionWithFunctionMap
@@ -49,19 +49,54 @@ def _updateDate(s):
 
 
 
-def updateDateForFields(fields, p):
+def _updatePercentage(s):
 	"""
-	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
+	[String] s (that ends with %) => [Float] or [String] s
 	"""
-	return {key: _updateDate(p[key]) if key in fields else p[key] for key in p}
+	return float(s[:-1]) if s[-1] == '%' else s
 
 
 
-def updateNumberForFields(fields, p):
+def _updateFieldsWithFunction(func, fields, p):
 	"""
-	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
+	[Func] function, [List] ([String]) fields, [Dictionary] p 
+		=> [Dictionary] p
 	"""
-	return {key: _updateNumber(p[key]) if key in fields else p[key] for key in p}
+	return {key: func(p[key]) if key in fields else p[key] for key in p}
+
+
+
+updateDateForFields = partial(
+	_updateFieldsWithFunction
+  , _updateDate
+)
+
+
+updateNumberForFields = partial(
+	_updateFieldsWithFunction
+  , _updateNumber
+)
+
+
+updatePercentageForFields = partial(
+	_updateFieldsWithFunction
+  , _updatePercentage
+)
+
+
+# def updateDateForFields(fields, p):
+# 	"""
+# 	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
+# 	"""
+# 	return {key: _updateDate(p[key]) if key in fields else p[key] for key in p}
+
+
+
+# def updateNumberForFields(fields, p):
+# 	"""
+# 	[List] ([String]) fields, [Dictionary] p => [Dictionary] p
+# 	"""
+# 	return {key: _updateNumber(p[key]) if key in fields else p[key] for key in p}
 
 
 
@@ -232,14 +267,6 @@ def _readCashLedgerReportFromLines(lines):
 	# End of addMetaDataToPosition()
 
 
-	def debug(position):
-		""" position => position """
-		if position['Portfolio'] == '40017' and position['TranDescription'] == 'Mature':
-			print(position)
-
-		return position
-
-
 	return \
 	compose(
 		partial( map
@@ -254,7 +281,6 @@ def _readCashLedgerReportFromLines(lines):
 			   			  )
 						)
 			   )
-	  , partial(map, debug)
 	  , lambda t: addMetaDataToPosition(t[0], t[1])
 	  , lambda t: lognContinue(t[0], t[1])
 	  , readTxtReportFromLines
@@ -262,8 +288,73 @@ def _readCashLedgerReportFromLines(lines):
 
 
 
-def readMultipartTaxlotReport(encoding, delimiter, file):
+def _readDividendReceivableReportFromLines(lines):
 	"""
+	[Iterable] ([List]) lines => [Iterable] ([Dictionary]) positions
+	"""
+	def lognContinue(positions, metaData):
+		logger.debug('_readDividendReceivableReportFromLines(): Portfolio {0}'.format(
+						metaData.get('Portfolio', '')))
+		return positions, metaData
+
+
+	def addMetaDataToPosition(positions, metaData):
+		"""
+		[Iterable] positions, [Dictionary] metaData
+			=> [Iterable] positions
+		"""
+		data = { 'Portfolio': metaData.get('Portfolio', '')
+			   , 'PeriodEndDate': metaData.get('PeriodEndDate', '')
+			   , 'KnowledgeDate': metaData.get('KnowledgeDate', '')
+			   , 'BookCurrency' : metaData.get('BookCurrency', '')
+			   }
+
+		return map(lambda p: mergeDict(p, data), positions)
+	# End of addMetaDataToPosition()
+
+
+	return \
+	compose(
+		partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
+	  , partial(map, partial(updatePercentageForFields, ('WHTaxRate', )))
+	  , partial( map
+			   , partial( updateNumberForFields
+			   			, ( 'ExDateQuantity', 'LocalGrossDividendRecPay', 'LocalWHTaxPayable'
+			   			  , 'LocalNetDividendRecPay', 'BookGrossDividendRecPay', 'BookWHTaxPayable'
+			   			  , 'BookNetDividendRecPay', 'UnrealizedFXGainLoss', 'LocalPerShareAmount'
+			   			  , 'LocalReclaimReceivable', 'BookReclaimReceivable', 'LocalReliefReceivable'
+			   			  , 'BookReliefReceivable'
+						  )
+						)
+			   )
+	  , lambda t: addMetaDataToPosition(t[0], t[1])
+	  , lambda t: lognContinue(t[0], t[1])
+	  , readTxtReportFromLines
+	)(lines)
+
+
+
+def readMultipartReport(mappingFunc, encoding, delimiter, file):
+	"""
+	[Func] ([Iterable] ([List]) lines => [Iterable] ([Dictionary] positions)),
+	[String] encoding, 
+	[String] delimiter, 
+	[String] filename 
+		=> [Iterable] ([Dictionary] position)
+
+	Read a multipart report (txt format), enrich it with meta data, 
+	and return all positions.
+	"""
+	return compose(
+		chain.from_iterable
+	  , partial(map, mappingFunc)
+	  , groupMultipartReportLines
+	  , txtReportToLines
+	)(encoding, delimiter, file)
+
+
+
+"""
 	[String] encoding, [String] delimiter, [String] filename, 
 		=> [Iterable] ([Dictionary] position)
 
@@ -271,24 +362,69 @@ def readMultipartTaxlotReport(encoding, delimiter, file):
 	with meta data, and return all positions.
 
 	Some of the positions consolidated.
-	"""
-	return compose(
-		chain.from_iterable
-	  , partial(map, _readTaxlotReportFromLines)
-	  , groupMultipartReportLines
-	  , txtReportToLines
-	)(encoding, delimiter, file)
+"""
+readMultipartTaxlotReport = partial(
+	readMultipartReport
+  , _readTaxlotReportFromLines
+)
 
 
 
-def readMultipartCashLedgerReport(encoding, delimiter, file):
-	"""
-	[String] encoding, [String] delimiter, [String] filename
-		=> [Iterable] ([Dictionary]) positions
-	"""
-	return compose(
-		chain.from_iterable
-	  , partial(map, _readCashLedgerReportFromLines)
-	  , groupMultipartReportLines
-	  , txtReportToLines
-	)(encoding, delimiter, file)
+"""
+	[String] encoding, [String] delimiter, [String] filename, 
+		=> [Iterable] ([Dictionary] position)
+
+	Read a multipart cash ledger report (txt format), enrich it 
+	with meta data, and return all positions.
+"""
+readMultipartCashLedgerReport = partial(
+	readMultipartReport
+  , _readCashLedgerReportFromLines
+)
+
+
+
+"""
+	[String] encoding, [String] delimiter, [String] filename, 
+		=> [Iterable] ([Dictionary] position)
+
+	Read a multipart dividend receivable report (txt format), enrich it 
+	with meta data, and return all positions.
+"""
+readMultipartDividendReceivableReport = partial(
+	readMultipartReport
+  , _readDividendReceivableReportFromLines
+)
+
+
+
+# def readMultipartTaxlotReport(encoding, delimiter, file):
+# 	"""
+# 	[String] encoding, [String] delimiter, [String] filename, 
+# 		=> [Iterable] ([Dictionary] position)
+
+# 	Read a multipart tax lot appraisal report (txt format), enrich it 
+# 	with meta data, and return all positions.
+
+# 	Some of the positions consolidated.
+# 	"""
+# 	return compose(
+# 		chain.from_iterable
+# 	  , partial(map, _readTaxlotReportFromLines)
+# 	  , groupMultipartReportLines
+# 	  , txtReportToLines
+# 	)(encoding, delimiter, file)
+
+
+
+# def readMultipartCashLedgerReport(encoding, delimiter, file):
+# 	"""
+# 	[String] encoding, [String] delimiter, [String] filename
+# 		=> [Iterable] ([Dictionary]) positions
+# 	"""
+# 	return compose(
+# 		chain.from_iterable
+# 	  , partial(map, _readCashLedgerReportFromLines)
+# 	  , groupMultipartReportLines
+# 	  , txtReportToLines
+# 	)(encoding, delimiter, file)
