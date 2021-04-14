@@ -5,7 +5,9 @@
 from factset.data import getGenevaPositions, getSecurityIdAndType \
 						, getPortfolioNames, getGenevaDividendReceivable
 from steven_utils.utility import mergeDict
+from toolz.functoolz import compose
 from functools import partial
+from itertools import filterfalse
 from os.path import join
 import logging
 logger = logging.getLogger(__name__)
@@ -77,7 +79,7 @@ def _getExchangeLocation(position):
 	"""
 	[Dictionary] geneva position => [String] equity exchange location
 	"""
-	equitySuffix = investId.split()[-1]
+	equitySuffix = _getInvestId(position).split()[-1]
 
 	if equitySuffix in ('C1', 'C2', 'CH'):
 		return 'CN'
@@ -205,14 +207,26 @@ def _getPerSharePrincipal(position):
 
 
 
+def _getPositionDividendReceivable(dividendReceivable, position):
+	"""
+	[Dictionary] geneva position
+		=> [Float] dividend receivable for the position
+	"""
+	try:
+		dvdReceivable = dividendReceivable[(_getPortfolioCode(position), _getSecurityName(position))]
+	except KeyError:
+		dvdReceivable = None
+
+	return dvdReceivable['LocalGrossDividendRecPay'] if dvdReceivable \
+			else 0
+
+
+
 def _getPerShareIncome(dividendReceivable, position):
 	"""
 	[Dictionary] geneva position => [Float] income per share
 	"""
-	try:
-		return dividendReceivable[position['TaxLotDescription']]/_getQuantity(position)
-	except KeyError:
-		return 0
+	return _getPositionDividendReceivable(dividendReceivable, position)/_getQuantity(position)
 
 
 
@@ -273,7 +287,7 @@ def _getContractSize(position):
 	"""
 	assetClass, assetType = _getAssetClassAndType(position)
 
-	if assetClass in ('Equity', 'Fund'):
+	if assetClass in ('Cash', 'Equity', 'Fund'):
 		return 'NA'
 	else:
 		logger.error('_getContractSize(): not supported')
@@ -288,7 +302,7 @@ def _getUnderlyingId(position):
 	"""
 	assetClass, assetType = _getAssetClassAndType(position)
 
-	if assetClass in ('Equity', 'Fund'):
+	if assetClass in ('Cash', 'Equity', 'Fund'):
 		return ''
 	else:
 		logger.error('_getUnderlyingId(): not supported')
@@ -344,15 +358,26 @@ def getPositions(date, portfolio):
 		=> [Iterable] ([Dictionary]) factset positions
 	"""
 	logger.debug('getPositions(): date={0}, portfolio={1}'.format(date, portfolio))
-	return map( partial(_factsetPosition, getGenevaDividendReceivable(date, portfolio))
-			  , getGenevaPositions(date, portfolio)
-			  )
+	
+	def takeOutDividendReceivableCash(positions):
+		"""
+		[Iterable] positions => [Iterable] positions
+		"""
+		return filterfalse(
+			lambda p: _getGenevaInvestmentType(p) == 'Cash and Equivalents' \
+						and 'DividendsReceivable' in _getSecurityName(p)
+		  , positions
+		)
+	# End of takeOutDividendReceivableCash()
 
+	dividendReceivable = compose(
+		dict
+	  , partial(map, lambda p: ((p['Portfolio'], p['Investment']), p))
+	  , getGenevaDividendReceivable
+	)(date, portfolio)
 
-
-
-if __name__ == "__main__":
-	import logging.config
-	logging.config.fileConfig('logging.config', disable_existing_loggers=False)
-
-	logger.debug('main(): start')
+	return compose(
+		partial(map, partial(_factsetPosition, dividendReceivable))
+	  , takeOutDividendReceivableCash
+	  , getGenevaPositions
+	)(date, portfolio)

@@ -5,6 +5,8 @@
 from factset.data import getGenevaPositions, getGenevaDividendReceivable \
 						, getGenevaCashLedger, getSecurityIdAndType \
 						, getPortfolioNames
+from factset.factset_position import getPositions
+from factset.utility import getOutputDirectory
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
 from functools import partial
@@ -90,6 +92,32 @@ def processMultipartDividendReceivableReport(outputDir, date, portfolio):
 
 
 
+def _doCsvOutput( positionGetterFunc, csvHeaders, filePrefix
+				, outputDir, date, portfolio):
+	"""
+	[Function] (([String] date, [String] portfolio) -> [Iterable] positions),
+	[Tuple] csv headers,
+	[String] csv file prefix
+	[String] output directory,
+	[String] date (yyyy-mm-dd),
+	[String] portfolio
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+	"""
+	logger.debug('_doCsvOutput(): {0}, {1}, {2}'.format(filePrefix, date, portfolio))
+
+	return compose(
+		partial( writeCsv
+			   , _getOutputFilename(outputDir, filePrefix, date, portfolio)
+			   )
+	  , partial(chain, [csvHeaders])
+	  , partial(map, partial(dictToValues, csvHeaders))
+	  , positionGetterFunc
+	)(date, portfolio)
+
+
+
 def _changeDateFormat(s):
 	"""
 	[String] s (yyyy-mm-dd) => [String] s (yyyymmdd)
@@ -164,6 +192,32 @@ def _getDividendReceivableCsvHeaders():
 
 
 
+def _getFactsetPositionCsvHeaders():
+	return \
+	( 'Portfolio Name', 'Portfolio Description', 'Date', 'Symbol', 'Security Name'
+	, 'Asset Class', 'Asset Type', 'Shares', 'Price', 'Price ISO', 'Per Share Accrued Interest'
+	, 'Per Share Principal', 'Per Share Income', 'Total Cost', 'Ending Market Value'
+	, 'Strategy', 'Contract Size', 'Underlying ID'
+	)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+"""
+_writeFactPositionToCsv = partial(
+	_doCsvOutput
+  , getPositions
+  , _getFactsetPositionCsvHeaders()
+  , 'factset_position'
+  , 
+)
+
+
+
 
 if __name__ == "__main__":
 	import logging.config
@@ -176,8 +230,16 @@ if __name__ == "__main__":
 	parser.add_argument('date', metavar='date', type=str, help="position date (yyyy-mm-dd)")
 	parser.add_argument('portfolio', metavar='portfolio', type=str, help="portfolio id")
 
-	print(processMultipartTaxlotReport('', parser.parse_args().date, parser.parse_args().portfolio))
-	print(processMultipartCashLedgerReport('', parser.parse_args().date, parser.parse_args().portfolio))
-	print(processMultipartDividendReceivableReport('', parser.parse_args().date, parser.parse_args().portfolio))
-	print(getSecurityIdAndType())
-	print(getPortfolioNames())
+	# print(processMultipartTaxlotReport('', parser.parse_args().date, parser.parse_args().portfolio))
+	# print(processMultipartCashLedgerReport('', parser.parse_args().date, parser.parse_args().portfolio))
+	# print(processMultipartDividendReceivableReport('', parser.parse_args().date, parser.parse_args().portfolio))
+	# print(getSecurityIdAndType())
+	# print(getPortfolioNames())
+
+	print(
+		_writeFactPositionToCsv(
+			getOutputDirectory()
+		  , parser.parse_args().date
+		  , parser.parse_args().portfolio
+		)
+	)

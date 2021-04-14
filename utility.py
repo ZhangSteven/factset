@@ -21,4 +21,10 @@ if not 'config' in globals():
 
 def getDataDirectory():
 	global config
-	return config['Input']['dataDirectory']
+	return config['Data']['inputDirectory']
+
+
+
+def getOutputDirectory():
+	global config
+	return config['Data']['outputDirectory']
