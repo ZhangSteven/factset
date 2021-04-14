@@ -8,6 +8,7 @@ from factset.geneva_position import readMultipartTaxlotReport \
 from factset.utility import getDataDirectory
 from steven_utils.file import getFiles
 from steven_utils.utility import mergeDict
+from steven_utils.excel import getRawPositionsFromFile
 from toolz.functoolz import compose
 from toolz.itertoolz import groupby as groupbyToolz
 from toolz.dicttoolz import valmap
@@ -40,18 +41,47 @@ def _getGenevaPortfolioData(dataGetterFunc, date, portfolio):
 
 def getSecurityIdAndType():
 	"""
-	[Dictionary] ([String] InvestID -> [Dictionary] properties) 
-					Geneva security id and type mapping
+	[Dictionary] ([String] invest id -> [Dictionary] security properties)
 	"""
-	return {}
+	file = compose(
+		lambda L: join(getDataDirectory(), L[0])
+	  , _checkOnlyOne
+	  , list
+	  , partial( filter
+	  		   , lambda fn: fn.lower().startswith('steven zhang security id and type report')
+	  		   )
+	  , getFiles
+	  , getDataDirectory
+	)()
+
+	return compose(
+		dict
+	  , partial(map, lambda p: (p['Code'], p))
+	  , _getGenevaSecurityIdAndTypeFromFile
+	)(file)
 
 
 
-def getPortfolioName():
+def getPortfolioNames():
 	"""
 	[Dictionary] ([String] portfolio code => [String] portfolio name)
 	"""
-	return {}
+	file = compose(
+		lambda L: join(getDataDirectory(), L[0])
+	  , _checkOnlyOne
+	  , list
+	  , partial( filter
+	  		   , lambda fn: fn.lower().startswith('steven zhang portfolio names')
+	  		   )
+	  , getFiles
+	  , getDataDirectory
+	)()
+
+	return compose(
+		dict
+	  , partial(map, lambda p: (p['NameSort'], p['NameLine1']))
+	  , _getGenevaPortfolioNamesFromFile
+	)(file)
 
 
 
@@ -131,6 +161,38 @@ _getGenevaCashLedgerFile = partial(
 	_getGenevaFileWithDate
   , lambda fn: fn.lower().startswith('all funds cash ledger')
 )
+
+
+
+@lru_cache(maxsize=3)
+def _getGenevaPortfolioNamesFromFile(file):
+	"""
+	[String] file => [List] ([Dictionary]) positions
+	"""
+	def toString(x):
+		return str(int(x)) if isinstance(x, float) else x
+
+
+	def updatePortfolioName(p):
+		return mergeDict(p, {'NameSort': toString(p['NameSort'])})
+
+
+	logger.debug('_getGenevaPortfolioNamesFromFile(): {0}'.format(file))
+	return compose(
+		list
+	  , partial(map, updatePortfolioName)
+	  , getRawPositionsFromFile
+	)(file)
+
+
+
+@lru_cache(maxsize=3)
+def _getGenevaSecurityIdAndTypeFromFile(file):
+	"""
+	[String] file => [List] ([Dictionary]) positions
+	"""
+	logger.debug('_getGenevaSecurityIdAndTypeFromFile(): {0}'.format(file))
+	return list(getRawPositionsFromFile(file))
 
 
 

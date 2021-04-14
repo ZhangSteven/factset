@@ -3,7 +3,8 @@
 # For scheduled jobs
 # 
 from factset.data import getGenevaPositions, getGenevaDividendReceivable \
-						, getGenevaCashLedger
+						, getGenevaCashLedger, getSecurityIdAndType \
+						, getPortfolioNames
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
 from functools import partial
@@ -178,3 +179,5 @@ if __name__ == "__main__":
 	print(processMultipartTaxlotReport('', parser.parse_args().date, parser.parse_args().portfolio))
 	print(processMultipartCashLedgerReport('', parser.parse_args().date, parser.parse_args().portfolio))
 	print(processMultipartDividendReceivableReport('', parser.parse_args().date, parser.parse_args().portfolio))
+	print(getSecurityIdAndType())
+	print(getPortfolioNames())
