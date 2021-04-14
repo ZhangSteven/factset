@@ -2,10 +2,8 @@
 #
 # For scheduled jobs
 # 
-from factset.geneva_position import readMultipartCashLedgerReport \
-								, readMultipartTaxlotReport \
-								, readMultipartDividendReceivableReport
-from factset.data import getGenevaPositions, getGenevaDividendReceivable
+from factset.data import getGenevaPositions, getGenevaDividendReceivable \
+						, getGenevaCashLedger
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
 from functools import partial
@@ -16,66 +14,78 @@ logger = logging.getLogger(__name__)
 
 
 
-def processMultipartTaxlotReport(outputDir, file):
+def processMultipartTaxlotReport(outputDir, date, portfolio):
 	"""
 	[String] output directory,
-	[String] multipart tax lot report (TXT) 
+	[String] date (yyyy-mm-dd)
+	[String] portfolio
 		=> [String] output csv
 
 	Side effect: create a csv file in the output directory.
 	"""
-	logger.debug('processMultipartTaxlotReport(): {0}'.format(file))
+	logger.debug('processMultipartTaxlotReport(): {0}, {1}'.format(
+				date, portfolio))
 
-	positions = list(readMultipartTaxlotReport('utf-16', '\t', file))
-	
 	return \
 	compose(
-		partial(writeCsv, _getOutputFilename(outputDir, 'tax_positions', positions))
+		partial( writeCsv
+			   , _getOutputFilename( outputDir, 'taxlot_positions'
+			   					   , date, portfolio)
+			   )
 	  , partial(chain, [_getTaxlotCsvHeaders()])
 	  , partial(map, partial(dictToValues, _getTaxlotCsvHeaders()))
-	)(positions)
+	  , getGenevaPositions
+	)(date, portfolio)
 
 
 
-def processMultipartCashLedgerReport(outputDir, file):
+def processMultipartCashLedgerReport(outputDir, date, portfolio):
 	"""
 	[String] output directory,
-	[String] multipart tax lot report (TXT) 
+	[String] date (yyyy-mm-dd)
+	[String] portfolio
 		=> [String] output csv
 
 	Side effect: create a csv file in the output directory.
 	"""
-	logger.debug('processMultipartCashLedgerReport(): {0}'.format(file))
+	logger.debug('processMultipartCashLedgerReport(): {0}, {1}'.format(
+				date, portfolio))
 
-	positions = list(readMultipartCashLedgerReport('utf-16', '\t', file))
-	
 	return \
 	compose(
-		partial(writeCsv, _getOutputFilename(outputDir, 'cash_ledger', positions))
+		partial( writeCsv
+			   , _getOutputFilename( outputDir, 'cash_ledger'
+			   					   , date, portfolio)
+			   )
 	  , partial(chain, [_getCashLedgerCsvHeaders()])
 	  , partial(map, partial(dictToValues, _getCashLedgerCsvHeaders()))
-	)(positions)
+	  , getGenevaCashLedger
+	)(date, portfolio)
 
 
 
-def processMultipartDividendReceivableReport(outputDir, file):
+def processMultipartDividendReceivableReport(outputDir, date, portfolio):
 	"""
 	[String] output directory,
-	[String] multipart tax lot report (TXT) 
+	[String] date (yyyy-mm-dd)
+	[String] portfolio
 		=> [String] output csv
 
 	Side effect: create a csv file in the output directory.
 	"""
-	logger.debug('processMultipartDividendReceivableReport(): {0}'.format(file))
+	logger.debug('processMultipartDividendReceivableReport(): {0}, {1}'.format(
+				date, portfolio))
 
-	positions = list(readMultipartDividendReceivableReport('utf-16', '\t', file))
-	
 	return \
 	compose(
-		partial(writeCsv, _getOutputFilename(outputDir, 'dividend_receivable', positions))
+		partial( writeCsv
+			   , _getOutputFilename( outputDir, 'dividend_receivable'
+			   					   , date, portfolio)
+			   )
 	  , partial(chain, [_getDividendReceivableCsvHeaders()])
 	  , partial(map, partial(dictToValues, _getDividendReceivableCsvHeaders()))
-	)(positions)
+	  , getGenevaDividendReceivable
+	)(date, portfolio)
 
 
 
@@ -99,17 +109,17 @@ def _changeDateHourFormat(s):
 
 
 
-def _getOutputFilename(outputDir, prefix, positions):
+def _getOutputFilename(outputDir, prefix, date, portfolio):
 	"""
-	[String] prefix, [List] positions => [String] output csv file name
+	[String] output directory,
+	[String] prefix, 
+	[String] date (yyyy-mm-dd)
+	[String] portfolio
+		=> [String] output csv file name
 	"""
-	if len(positions) == 0:
-		logger.error('_getOutputFilename(): no positions')
-		raise ValueError
-
 	return join( outputDir
-			   , prefix + '_' + _changeDateFormat(positions[0]['PeriodEndDate']) + '_' \
-			   		+ _changeDateHourFormat(positions[0]['KnowledgeDate']) + '.csv'
+			   , prefix + '_' + _changeDateFormat(date) + '_' \
+			   		+ portfolio + '.csv'
 			   )
 
 
@@ -162,17 +172,9 @@ if __name__ == "__main__":
 
 	import argparse
 	parser = argparse.ArgumentParser(description='handle fact positions')
-	# parser.add_argument('file', metavar='file', type=str, help="input file")
-	# print(processMultipartTaxlotReport('', parser.parse_args().file))
-	# print(processMultipartCashLedgerReport('', parser.parse_args().file))
-	# print(processMultipartDividendReceivableReport('', parser.parse_args().file))
-
 	parser.add_argument('date', metavar='date', type=str, help="position date (yyyy-mm-dd)")
 	parser.add_argument('portfolio', metavar='portfolio', type=str, help="portfolio id")
-	print(getGenevaPositions( parser.parse_args().date
-							, parser.parse_args().portfolio
-							))
-	# print(getGenevaDividendReceivable( parser.parse_args().date
-	# 								 , parser.parse_args().portfolio))
-	# print(getGenevaDividendReceivable( parser.parse_args().date
-	# 								 , '11490-B'))
+
+	print(processMultipartTaxlotReport('', parser.parse_args().date, parser.parse_args().portfolio))
+	print(processMultipartCashLedgerReport('', parser.parse_args().date, parser.parse_args().portfolio))
+	print(processMultipartDividendReceivableReport('', parser.parse_args().date, parser.parse_args().portfolio))

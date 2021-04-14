@@ -3,7 +3,8 @@
 # Handle data store operations.
 # 
 from factset.geneva_position import readMultipartTaxlotReport \
-								, readMultipartDividendReceivableReport
+								, readMultipartDividendReceivableReport \
+								, readMultipartCashLedgerReport
 from factset.utility import getDataDirectory
 from steven_utils.file import getFiles
 from steven_utils.utility import mergeDict
@@ -17,35 +18,23 @@ logger = logging.getLogger(__name__)
 
 
 
-def getGenevaPositions(date, portfolio):
+def _getGenevaPortfolioData(dataGetterFunc, date, portfolio):
 	"""
-	[String] date (yyyy-mm-dd), [String] portfolio
-		=> [List] ([Dictionary]) Geneva Positions
+	[Function] ([String] date -> [Iterable] ([Dictionary]) positions),
+	[String] date (yyyy-mm-dd), 
+	[String] portfolio
+		=> [List] ([Dictionary]) Positions from a Geneva report
 	"""
-	logger.debug('getGenevaPositions(): {0}, {1}'.format(date, portfolio))
-	return compose(
-		list
-	  , partial(filter, lambda p: p['Portfolio'] == portfolio)
-	  , _getGenevaPositionsFromFile
-	)(date)
+	logger.debug('_getGenevaPortfolioData(): {0}, {1}'.format(date, portfolio))
 
-
-
-def getGenevaDividendReceivable(date, portfolio):
-	"""
-	[String] date (yyyy-mm-dd), [String] portfolio
-		=> [Dictionary] ( [String] investment description
-						  -> [Dictionary] receivable info
-						)
-
-	consolidate based on "investment description".
-	"""
-	logger.debug('getGenevaDividendReceivable(): {0}, {1}'.format(date, portfolio))
-	return compose(
-		list
-	  , partial(filter, lambda p: p['Portfolio'] == portfolio)
-	  , _getGenevaDividendReceivableFromFile
-	)(date)
+	if portfolio == 'all':
+		return list(dataGetterFunc(date))
+	else:
+		return compose(
+			list
+		  , partial(filter, lambda p: p['Portfolio'] == portfolio)
+		  , dataGetterFunc
+		)(date)
 
 
 
@@ -135,6 +124,16 @@ _getGenevaDividendReceivableFile = partial(
 
 
 
+""" 
+	[String] date => [String] cash ledger file 
+"""
+_getGenevaCashLedgerFile = partial(
+	_getGenevaFileWithDate
+  , lambda fn: fn.lower().startswith('all funds cash ledger')
+)
+
+
+
 @lru_cache(maxsize=3)
 def _getGenevaPositionsFromFile(date):
 	"""
@@ -160,3 +159,52 @@ def _getGenevaDividendReceivableFromFile(date):
 	  , partial(readMultipartDividendReceivableReport, 'utf-16', '\t')
 	  , _getGenevaDividendReceivableFile
 	)(date)
+
+
+
+@lru_cache(maxsize=3)
+def _getGenevaCashLedgerFromFile(date):
+	"""
+	[String] date (yyyy-mm-dd) => [List] ([Dictionary]) positions
+	"""
+	logger.debug('_getGenevaCashLedgerFromFile(): {0}'.format(date))
+	return compose(
+		list
+	  , partial(readMultipartCashLedgerReport, 'utf-16', '\t')
+	  , _getGenevaCashLedgerFile
+	)(date)
+
+
+
+"""
+	[String] date (yyyy-mm-dd), [String] portfolio
+		=> [List] ([Dictionary]) Geneva Positions (from tax lot)
+"""
+getGenevaPositions = partial(
+	_getGenevaPortfolioData
+  , _getGenevaPositionsFromFile
+)
+
+
+
+"""
+	[String] date (yyyy-mm-dd), [String] portfolio
+		=> [List] ([Dictionary]) Geneva Cash Ledger Positions
+"""
+getGenevaCashLedger = partial(
+	_getGenevaPortfolioData
+  , _getGenevaCashLedgerFromFile
+)
+
+
+
+"""
+	[String] date (yyyy-mm-dd), [String] portfolio
+		=> [List] ([Dictionary]) Geneva dividend receivable
+
+	consolidate based on "investment description".
+"""
+getGenevaDividendReceivable = partial(
+	_getGenevaPortfolioData
+  , _getGenevaDividendReceivableFromFile
+)
