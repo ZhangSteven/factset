@@ -273,32 +273,32 @@ def _readCashLedgerReportFromLines(lines):
 
 
 
-def _consolidateDividendReceivable(positions):
-	"""
-	[Iterable] ([Dictionary]) positions => [Iterable] positions
+# def _consolidateDividendReceivable(positions):
+# 	"""
+# 	[Iterable] ([Dictionary]) positions => [Iterable] positions
 
-	Consolidate positions of the same security into one.
-	"""
-	def consolidate(group):
-		return mergeDict(
-			group[0]
-		  , _updateFields( ( 'ExDateQuantity', 'LocalGrossDividendRecPay'
-		  				   , 'LocalWHTaxPayable', 'LocalNetDividendRecPay'
-		  				   , 'BookGrossDividendRecPay', 'BookWHTaxPayable'
-		  				   , 'BookNetDividendRecPay', 'UnrealizedFXGainLoss'
-		  				   , 'LocalReclaimReceivable', 'BookReclaimReceivable'
-		  				   , 'LocalReliefReceivable', 'BookReliefReceivable'
-		  				   )
-		  				 , group
-		  				 )
-		)
-	# End of consolidate()
+# 	Consolidate positions of the same security into one.
+# 	"""
+# 	def consolidate(group):
+# 		return mergeDict(
+# 			group[0]
+# 		  , _updateFields( ( 'ExDateQuantity', 'LocalGrossDividendRecPay'
+# 		  				   , 'LocalWHTaxPayable', 'LocalNetDividendRecPay'
+# 		  				   , 'BookGrossDividendRecPay', 'BookWHTaxPayable'
+# 		  				   , 'BookNetDividendRecPay', 'UnrealizedFXGainLoss'
+# 		  				   , 'LocalReclaimReceivable', 'BookReclaimReceivable'
+# 		  				   , 'LocalReliefReceivable', 'BookReliefReceivable'
+# 		  				   )
+# 		  				 , group
+# 		  				 )
+# 		)
+# 	# End of consolidate()
 
-	return compose(
-		lambda d: d.values()
-	  , partial(valmap, consolidate)
-	  , partial(groupbyToolz, lambda p: p['Investment'])
-	)(positions)
+# 	return compose(
+# 		lambda d: d.values()
+# 	  , partial(valmap, consolidate)
+# 	  , partial(groupbyToolz, lambda p: p['Investment'])
+# 	)(positions)
 
 
 
@@ -329,8 +329,8 @@ def _readDividendReceivableReportFromLines(lines):
 
 	return \
 	compose(
-		_consolidateDividendReceivable
-	  , partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
+		# _consolidateDividendReceivable
+	  	partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
 	  , partial(map, partial(updatePercentageForFields, ('WHTaxRate', )))
 	  , partial( map
 			   , partial( updateNumberForFields

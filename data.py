@@ -39,6 +39,19 @@ def _getGenevaPortfolioData(dataGetterFunc, date, portfolio):
 
 
 
+def getFX(currency, targetCurrency):
+	"""
+	[String] currency, [String] target currency
+		=> [Float] exchange rate
+
+	Returns how many units of target currency is exchanged with
+	one unit of currency. E.g., getFX('USD', 'HKD') -> 7.8
+	"""
+	# FIXME: implement it
+	return 1.0
+
+
+
 def getSecurityIdAndType():
 	"""
 	[Dictionary] ([String] invest id -> [Dictionary] security properties)

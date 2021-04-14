@@ -3,7 +3,8 @@
 # Handles Geneva position data for FactSet upload.
 # 
 from factset.data import getGenevaPositions, getSecurityIdAndType \
-						, getPortfolioNames, getGenevaDividendReceivable
+						, getPortfolioNames, getGenevaDividendReceivable \
+						, getFX
 from steven_utils.utility import mergeDict
 from toolz.functoolz import compose
 from functools import partial
@@ -207,6 +208,17 @@ def _getPerSharePrincipal(position):
 
 
 
+def _amountInAnotherCurrency(amoutWithCurrency, targetCurrency):
+	"""
+	([String] currency, [Float] amount), [String] target currency
+		=> [Float] amount
+	"""
+	currency, amount = amoutWithCurrency
+	return amount if currency == targetCurrency else \
+			amount * getFX(currency, targetCurrency)
+
+
+
 def _getPositionDividendReceivable(dividendReceivable, position):
 	"""
 	[Dictionary] geneva position
@@ -217,8 +229,8 @@ def _getPositionDividendReceivable(dividendReceivable, position):
 	except KeyError:
 		dvdReceivable = None
 
-	return dvdReceivable['LocalGrossDividendRecPay'] if dvdReceivable \
-			else 0
+	return _amountInAnotherCurrency(dvdReceivable, _getLocalCurrency(position)) \
+			if dvdReceivable else 0
 
 
 
@@ -356,28 +368,36 @@ def getPositions(date, portfolio):
 	"""
 	[String] date (yyyy-mm-dd), [String] portfolio
 		=> [Iterable] ([Dictionary]) factset positions
+
+	Note: portfolio cannot be 'all', must be a portfolio code.
 	"""
 	logger.debug('getPositions(): date={0}, portfolio={1}'.format(date, portfolio))
 	
-	def takeOutDividendReceivableCash(positions):
-		"""
-		[Iterable] positions => [Iterable] positions
-		"""
-		return filterfalse(
-			lambda p: _getGenevaInvestmentType(p) == 'Cash and Equivalents' \
-						and 'DividendsReceivable' in _getSecurityName(p)
-		  , positions
-		)
+	# def takeOutDividendReceivableCash(positions):
+	# 	"""
+	# 	[Iterable] positions => [Iterable] positions
+	# 	"""
+	# 	return filterfalse(
+	# 		lambda p: _getGenevaInvestmentType(p) == 'Cash and Equivalents' \
+	# 					and 'DividendsReceivable' in _getSecurityName(p)
+	# 	  , positions
+	# 	)
 	# End of takeOutDividendReceivableCash()
 
 	dividendReceivable = compose(
 		dict
-	  , partial(map, lambda p: ((p['Portfolio'], p['Investment']), p))
+	  , partial( map
+	  		   , lambda p: ( (p['Portfolio'], p['Investment'])
+	  		   			   , (p['LocalCurrency'], p['LocalPerShareAmount'])
+	  		   			   )
+	  		   )
+	  , partial( filter
+	  		   , lambda p: p['PeriodEndDate'] == p['EXDate']
+	  		   )
 	  , getGenevaDividendReceivable
 	)(date, portfolio)
 
 	return compose(
 		partial(map, partial(_factsetPosition, dividendReceivable))
-	  , takeOutDividendReceivableCash
 	  , getGenevaPositions
 	)(date, portfolio)
