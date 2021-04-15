@@ -77,22 +77,22 @@ def _getCashSymbol(position):
 
 
 
-def _getExchangeLocation(position):
-	"""
-	[Dictionary] geneva position => [String] equity exchange location
-	"""
-	equitySuffix = _getInvestId(position).split()[-1]
+# def _getExchangeLocation(position):
+# 	"""
+# 	[Dictionary] geneva position => [String] equity exchange location
+# 	"""
+# 	equitySuffix = _getInvestId(position).split()[-1]
 
-	if equitySuffix in ('C1', 'C2', 'CH'):
-		return 'CN'
-	elif equitySuffix in ('HK', 'US'):
-		return equitySuffix
-	elif equitySuffix == 'SP':
-		return 'SG'
-	else:
-		logger.error('_getExchangeLocation(): {0} not supported'.format(
-					_getInvestId(position)))
-		raise ValueError
+# 	if equitySuffix in ('C1', 'C2', 'CH'):
+# 		return 'CN'
+# 	elif equitySuffix in ('HK', 'US'):
+# 		return equitySuffix
+# 	elif equitySuffix == 'SP':
+# 		return 'SG'
+# 	else:
+# 		logger.error('_getExchangeLocation(): {0} not supported'.format(
+# 					_getInvestId(position)))
+# 		raise ValueError
 
 
 
@@ -100,13 +100,7 @@ def _getEquitySymbol(position):
 	"""
 	[Dictionary] geneva position => [String] symbol
 	"""
-	isin = getSecurityIdAndType()[_getInvestId(position)]['Isin']
-	if isin == '':
-		logger.error('_getEquitySymbol(): {0}: empty ISIN code'.format(
-					_getInvestId(position)))
-		raise ValueError
-
-	return isin + '-' + _getExchangeLocation(position)
+	return getSecurityIdAndType()[_getInvestId(position)]['SEDOL']
 
 
 
@@ -254,14 +248,11 @@ def _getTotalCost(position):
 	[Dictionary] geneva position => [Float] total cost
 	"""
 	assetClass, assetType = _getAssetClassAndType(position)
-	if assetClass == 'Cash':
-		return _getQuantity(position)
-
-	if assetClass in ('Equity', 'Fund'):
-		return _getQuantity(position) * position['UnitCost']
-	else:
-		logger.error('_getEndingMarketValue(): not supported')
+	if assetClass == 'Futures':
+		logger.error('_getEndingMarketValue(): not implemented')
 		raise ValueError
+
+	return 'NA'
 
 
 

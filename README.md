@@ -4,12 +4,17 @@ Process Geneva data for FactSet upload.
 
 
 ## Todo
+1. Add NAV cross checking after position generated.
 
-1. Need to get SEDOL code for equity;
+2. Add test cases for tax lot, dividend receivable, and factset position.
 
-5. ask fund accounting, whether they have changed or created any dividend entry?
 
-6. if HSBC is going to pay dvd in USD, but we want HKD, so what is going to happen?
+## Fund Accounting
+Dividend handling may generate accounting transactions:
+
+1. ask fund accounting, whether they have changed or created any dividend entry?
+
+2. if HSBC is going to pay dvd in USD, but we want HKD, so what is going to happen?
 
 
 ## Known Issues

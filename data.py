@@ -89,29 +89,23 @@ def getFxTable(date):
 
 
 
+@lru_cache(maxsize=3)
 def getSecurityIdAndType():
 	"""
 	[Dictionary] ([String] invest id -> [Dictionary] security properties)
 	"""
-	file = compose(
-		lambda L: join(getDataDirectory(), L[0])
-	  , _checkOnlyOne
-	  , list
-	  , partial( filter
-	  		   , lambda fn: fn.lower().startswith('steven zhang security id and type report')
-	  		   )
-	  , getFiles
-	  , getDataDirectory
-	)()
+	def addSedol(sedolMapping, p):
+		return mergeDict(p, {'SEDOL': sedolMapping.get(p['Code'], '')})
+
 
 	return compose(
-		dict
-	  , partial(map, lambda p: (p['Code'], p))
-	  , _getGenevaSecurityIdAndTypeFromFile
-	)(file)
+		partial(valmap, partial(addSedol, _getSedolCodeMapping()))
+	  , _getGenevaSecurityIdAndType
+	)()
 
 
 
+@lru_cache(maxsize=3)
 def getPortfolioNames():
 	"""
 	[Dictionary] ([String] portfolio code => [String] portfolio name)
@@ -285,6 +279,47 @@ def _getGenevaCashLedgerFromFile(date):
 	  , partial(readMultipartCashLedgerReport, 'utf-16', '\t')
 	  , _getGenevaCashLedgerFile
 	)(date)
+
+
+
+def _getGenevaSecurityIdAndType():
+	"""
+	[Dictionary] ([String] invest id -> [Dictionary] security properties)
+	"""
+	# file = compose(
+	# 	lambda L: join(getDataDirectory(), L[0])
+	#   , _checkOnlyOne
+	#   , list
+	#   , partial( filter
+	#   		   , lambda fn: fn.lower().startswith('steven zhang security id and type report')
+	#   		   )
+	#   , getFiles
+	#   , getDataDirectory
+	# )()
+
+	return compose(
+		dict
+	  , partial(map, lambda p: (p['Code'], p))
+	  , _getGenevaSecurityIdAndTypeFromFile
+	  , lambda fn: join(getDataDirectory(), fn)
+	)('Steven Zhang Security ID and Type Report.xlsx')
+
+
+
+def _getSedolCodeMapping():
+	"""
+	[Dictionary] ([String] invest id -> [String] SEDOL Code)
+	"""
+	def toString(x):
+		return str(int(x)) if isinstance(x, float) else x
+
+
+	return compose(
+		dict
+	  , partial(map, lambda p: (p['Investment Id'], toString(p['SEDOL'])))
+	  , getRawPositionsFromFile
+	  , lambda fn: join(getDataDirectory(), fn)
+	)('Equity Sedol Code.xlsx')
 
 
 
