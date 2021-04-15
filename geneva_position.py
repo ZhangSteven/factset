@@ -4,7 +4,7 @@
 # 
 from geneva.report import groupMultipartReportLines, txtReportToLines \
 						, readTxtReportFromLines, updatePositionWithFunctionMap
-from steven_utils.utility import mergeDict
+from steven_utils.utility import mergeDict, allEquals
 from toolz.functoolz import compose
 from toolz.itertoolz import groupby as groupbyToolz
 from toolz.dicttoolz import valmap
@@ -85,7 +85,7 @@ updatePercentageForFields = partial(
 
 
 
-def isDerivative(assetType):
+def _isOTCType(assetType):
 	"""
 	[String] Geneva asset type => [Bool] is it a derivative position
 	"""
@@ -94,7 +94,7 @@ def isDerivative(assetType):
 
 
 
-def isCash(assetType):
+def _isCash(assetType):
 	return assetType == 'Cash and Equivalents'
 
 
@@ -117,8 +117,7 @@ def _consolidateTaxlotPositions(positions):
 	into one.
 	"""
 	def notForConsolidate(position):
-		return isCash(position['ThenByDescription']) or \
-				isDerivative(position['ThenByDescription'])
+		return _isOTCType(position['ThenByDescription'])
 
 
 	def getUnitCost(positions):
@@ -150,11 +149,18 @@ def _consolidateTaxlotPositions(positions):
 		)(group)
 	# End of consolidate()
 
+
+	def updateCashDescription(p):
+		return mergeDict(p, {'TaxLotDescription': p['InvestID'] + ' ' + p['Portfolio']}) \
+				if _isCash(p['ThenByDescription']) else p
+	# End of updateCashDescription()
+
 	positions = list(positions)
 
 	consolidatedPositions = \
 	compose(
-		lambda d: d.values()
+		partial(map, updateCashDescription) 
+	  , lambda d: d.values()
 	  , partial(valmap, consolidate)
 	  , partial(groupbyToolz, lambda p: p['InvestID'])
 	  , partial(filterfalse, notForConsolidate)
@@ -273,32 +279,42 @@ def _readCashLedgerReportFromLines(lines):
 
 
 
-# def _consolidateDividendReceivable(positions):
-# 	"""
-# 	[Iterable] ([Dictionary]) positions => [Iterable] positions
+def _consolidateDividendReceivable(positions):
+	"""
+	[Iterable] ([Dictionary]) positions => [Iterable] positions
 
-# 	Consolidate positions of the same security into one.
-# 	"""
-# 	def consolidate(group):
-# 		return mergeDict(
-# 			group[0]
-# 		  , _updateFields( ( 'ExDateQuantity', 'LocalGrossDividendRecPay'
-# 		  				   , 'LocalWHTaxPayable', 'LocalNetDividendRecPay'
-# 		  				   , 'BookGrossDividendRecPay', 'BookWHTaxPayable'
-# 		  				   , 'BookNetDividendRecPay', 'UnrealizedFXGainLoss'
-# 		  				   , 'LocalReclaimReceivable', 'BookReclaimReceivable'
-# 		  				   , 'LocalReliefReceivable', 'BookReliefReceivable'
-# 		  				   )
-# 		  				 , group
-# 		  				 )
-# 		)
-# 	# End of consolidate()
+	Consolidate positions of the same security into one.
+	"""
+	def checkConsistency(group):
+		logger.debug('_consolidateDividendReceivable(): {0}'.format(group[0]['Investment']))
+		if allEquals(map(lambda p: (p['LocalCurrency'], p['LocalPerShareAmount']), group)):
+			return group
+		else:
+			logger.error('_consolidateDividendReceivable(): inconsistency: {0}'.format(group))
+			raise ValueError
 
-# 	return compose(
-# 		lambda d: d.values()
-# 	  , partial(valmap, consolidate)
-# 	  , partial(groupbyToolz, lambda p: p['Investment'])
-# 	)(positions)
+
+	def consolidate(group):
+		return mergeDict(
+			group[0]
+		  , _updateFields( ( 'ExDateQuantity', 'LocalGrossDividendRecPay'
+		  				   , 'LocalWHTaxPayable', 'LocalNetDividendRecPay'
+		  				   , 'BookGrossDividendRecPay', 'BookWHTaxPayable'
+		  				   , 'BookNetDividendRecPay', 'UnrealizedFXGainLoss'
+		  				   , 'LocalReclaimReceivable', 'BookReclaimReceivable'
+		  				   , 'LocalReliefReceivable', 'BookReliefReceivable'
+		  				   )
+		  				 , group
+		  				 )
+		)
+	# End of consolidate()
+
+	return compose(
+		lambda d: d.values()
+	  , partial(valmap, consolidate)
+	  , partial(valmap, checkConsistency)
+	  , partial(groupbyToolz, lambda p: p['Investment'])
+	)(positions)
 
 
 
@@ -329,8 +345,8 @@ def _readDividendReceivableReportFromLines(lines):
 
 	return \
 	compose(
-		# _consolidateDividendReceivable
-	  	partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
+		_consolidateDividendReceivable
+	  , partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
 	  , partial(map, partial(updatePercentageForFields, ('WHTaxRate', )))
 	  , partial( map
 			   , partial( updateNumberForFields

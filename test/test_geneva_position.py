@@ -53,11 +53,10 @@ class TestGenevaPosition(unittest2.TestCase):
 		)('utf-16', '\t', file)
 
 		cashPositions = list(filter(isTaxlotCash, positions))
-		self.assertEqual(7, len(cashPositions))
+		self.assertEqual(2, len(cashPositions))
 
-		p = sorted(cashPositions, key=lambda p: p['Quantity'])[0]
-		self.assertAlmostEqual(-80050151.41, p['Quantity'])
-		self.assertEqual('HKD', p['InvestID'])
+		p = firstOf(lambda p: p['InvestID'] == 'HKD', cashPositions)
+		self.assertAlmostEqual(29762442.60, p['Quantity'])
 
 		otherPositions = list(filterfalse(isTaxlotCash, positions))
 		self.assertEqual(114, len(otherPositions))
@@ -83,7 +82,10 @@ class TestGenevaPosition(unittest2.TestCase):
 		)('utf-16', '\t', file)
 
 		cashPositions = list(filter(isTaxlotCash, positions))
-		self.assertEqual(10, len(cashPositions))
+		self.assertEqual(2, len(cashPositions))
+		
+		p = firstOf(lambda p: p['InvestID'] == 'USD', cashPositions)
+		self.assertAlmostEqual(-7198256.77, p['Quantity'])
 
 		fdPositions = list(filter(isTaxlotFixedDeposit, positions))
 		self.assertEqual(13, len(fdPositions))
