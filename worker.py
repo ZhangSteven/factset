@@ -233,17 +233,17 @@ if __name__ == "__main__":
 	parser.add_argument('date', metavar='date', type=str, help="position date (yyyy-mm-dd)")
 	parser.add_argument('portfolio', metavar='portfolio', type=str, help="portfolio id")
 
-	# print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
+	print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeDividendReceivableCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(getSecurityIdAndType())
 	# print(getPortfolioNames())
 
-	print(
-		_writeFactPositionToCsv(
-			getOutputDirectory()
-		  , parser.parse_args().date
-		  , parser.parse_args().portfolio
-		)
-	)
+	# print(
+	# 	_writeFactPositionToCsv(
+	# 		getOutputDirectory()
+	# 	  , parser.parse_args().date
+	# 	  , parser.parse_args().portfolio
+	# 	)
+	# )
 
 	# print(writeFxTableCsv(getOutputDirectory(), parser.parse_args().date))

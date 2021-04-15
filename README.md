@@ -7,8 +7,6 @@ Process Geneva data for FactSet upload.
 
 1. Need to get SEDOL code for equity;
 
-4. show dividend receivable per share only on Ex date, with pre-tax number;
-
 5. ask fund accounting, whether they have changed or created any dividend entry?
 
 6. if HSBC is going to pay dvd in USD, but we want HKD, so what is going to happen?
