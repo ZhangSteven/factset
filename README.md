@@ -7,10 +7,6 @@ Process Geneva data for FactSet upload.
 
 1. Need to get SEDOL code for equity;
 
-2. Get FX rate from tax lot file; getFX(date)
-
-3. Consolidate all cash entries in taxlot;
-
 4. show dividend receivable per share only on Ex date, with pre-tax number;
 
 5. ask fund accounting, whether they have changed or created any dividend entry?

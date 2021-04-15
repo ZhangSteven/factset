@@ -4,8 +4,9 @@
 # 
 from factset.data import getGenevaPositions, getSecurityIdAndType \
 						, getPortfolioNames, getGenevaDividendReceivable \
-						, getFX
+						, getFxTable
 from steven_utils.utility import mergeDict
+from steven_utils.iter import firstOf
 from toolz.functoolz import compose
 from functools import partial
 from itertools import filterfalse
@@ -208,29 +209,35 @@ def _getPerSharePrincipal(position):
 
 
 
-def _amountInAnotherCurrency(amoutWithCurrency, targetCurrency):
+def _amountInLocalCurrency(amoutWithCurrency, position):
 	"""
-	([String] currency, [Float] amount), [String] target currency
+	([String] currency, [Float] amount), [Dictionary] position
 		=> [Float] amount
 	"""
 	currency, amount = amoutWithCurrency
-	return amount if currency == targetCurrency else \
-			amount * getFX(currency, targetCurrency)
+	return amount * _getFxRate( _getPositionDate(position), _getPortfolioCode(position)
+							  , currency, _getLocalCurrency(position))
 
 
 
-def _getPositionDividendReceivable(dividendReceivable, position):
+def _getPerShareDividend(dividendReceivable, position):
 	"""
+	[Dictionary] ([String] portfolio, [String] investment) -> [Dictionary] dividend entry
 	[Dictionary] geneva position
 		=> [Float] dividend receivable for the position
 	"""
 	try:
 		dvdReceivable = dividendReceivable[(_getPortfolioCode(position), _getSecurityName(position))]
 	except KeyError:
-		dvdReceivable = None
+		return 0
 
-	return _amountInAnotherCurrency(dvdReceivable, _getLocalCurrency(position)) \
-			if dvdReceivable else 0
+	fx = _getFxRate( _getPositionDate(position), _getPortfolioCode(position)
+				   , dvdReceivable['LocalCurrency'], _getLocalCurrency(position))
+	perShareDvd = dvdReceivable['LocalPerShareAmount'] \
+					if isinstance(dvdReceivable['LocalPerShareAmount'], float) \
+					else dvdReceivable['LocalGrossDividendRecPay']/_getQuantity(position)
+
+	return perShareDvd * fx
 
 
 
@@ -238,7 +245,7 @@ def _getPerShareIncome(dividendReceivable, position):
 	"""
 	[Dictionary] geneva position => [Float] income per share
 	"""
-	return _getPositionDividendReceivable(dividendReceivable, position)/_getQuantity(position)
+	return _getPerShareDividend(dividendReceivable, position)
 
 
 
@@ -330,6 +337,73 @@ def _changeDateFormat(dt):
 
 
 
+def _getFxRate(date, portfolio, currency, targetCurrency):
+	"""
+	[String] date (yyyy-mm-dd),
+	[String] portfolio,
+	[String] currency,
+	[String] target currency
+		=> [Float] FX rate
+
+	returns how many units of target currency is equal to one unit
+	of currency. For example:
+
+	_getFxRate('2021-03-31', '12307', 'USD', 'HKD') -> 7.7741
+	"""
+	if currency == targetCurrency:
+		return 1.0
+
+	fxPositions = getFxTable(date)
+	p = firstOf( lambda p: all(( date == p['Date']
+							   , portfolio == p['Portfolio']
+							   , currency == p['Currency']
+							   , targetCurrency == p['TargetCurrency']
+							   ))
+			   , fxPositions
+			   )
+
+	if p != None:
+		return p['ExchangeRate']
+
+	p = firstOf( lambda p: all(( date == p['Date']
+							   , portfolio == p['Portfolio']
+							   , targetCurrency == p['Currency']
+							   , currency == p['TargetCurrency']
+							   ))
+			   , fxPositions
+			   )
+
+	if p != None:
+		return 1.0/p['ExchangeRate']
+
+	logger.debug('FX not found for portfolio {0}, {1}->{2}, try other portfolio'.format(
+				portfolio, currency, targetCurrency))
+
+	p = firstOf( lambda p: all(( date == p['Date']
+							   , currency == p['Currency']
+							   , targetCurrency == p['TargetCurrency']
+							   ))
+			   , fxPositions
+			   )
+
+	if p != None:
+		return p['ExchangeRate']
+
+	p = firstOf( lambda p: all(( date == p['Date']
+							   , targetCurrency == p['Currency']
+							   , currency == p['TargetCurrency']
+							   ))
+			   , fxPositions
+			   )
+
+	if p != None:
+		return 1.0/p['ExchangeRate']
+
+	logger.error('FX not found for {1}->{2}'.format(currency, targetCurrency))
+	raise ValueError
+
+
+
 def _factsetPosition(dividendReceivable, position):
 	"""
 	[Dictionary] dividend receivable,
@@ -386,14 +460,8 @@ def getPositions(date, portfolio):
 
 	dividendReceivable = compose(
 		dict
-	  , partial( map
-	  		   , lambda p: ( (p['Portfolio'], p['Investment'])
-	  		   			   , (p['LocalCurrency'], p['LocalPerShareAmount'])
-	  		   			   )
-	  		   )
-	  , partial( filter
-	  		   , lambda p: p['PeriodEndDate'] == p['EXDate']
-	  		   )
+	  , partial(map, lambda p: ((p['Portfolio'], p['Investment']), p))
+	  , partial(filter, lambda p: date == p['EXDate'])
 	  , getGenevaDividendReceivable
 	)(date, portfolio)
 

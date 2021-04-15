@@ -4,7 +4,7 @@
 # 
 from factset.data import getGenevaPositions, getGenevaDividendReceivable \
 						, getGenevaCashLedger, getSecurityIdAndType \
-						, getPortfolioNames
+						, getPortfolioNames, getFxTable
 from factset.factset_position import getPositions
 from factset.utility import getOutputDirectory
 from steven_utils.utility import writeCsv, dictToValues
@@ -14,31 +14,6 @@ from itertools import chain
 from os.path import join
 import logging
 logger = logging.getLogger(__name__)
-
-
-
-def processMultipartTaxlotReport(outputDir, date, portfolio):
-	"""
-	[String] output directory,
-	[String] date (yyyy-mm-dd)
-	[String] portfolio
-		=> [String] output csv
-
-	Side effect: create a csv file in the output directory.
-	"""
-	logger.debug('processMultipartTaxlotReport(): {0}, {1}'.format(
-				date, portfolio))
-
-	return \
-	compose(
-		partial( writeCsv
-			   , _getOutputFilename( outputDir, 'taxlot_positions'
-			   					   , date, portfolio)
-			   )
-	  , partial(chain, [_getTaxlotCsvHeaders()])
-	  , partial(map, partial(dictToValues, _getTaxlotCsvHeaders()))
-	  , getGenevaPositions
-	)(date, portfolio)
 
 
 
@@ -67,28 +42,22 @@ def processMultipartCashLedgerReport(outputDir, date, portfolio):
 
 
 
-def processMultipartDividendReceivableReport(outputDir, date, portfolio):
+def writeFxTableCsv(outputDir, date):
 	"""
 	[String] output directory,
 	[String] date (yyyy-mm-dd)
-	[String] portfolio
 		=> [String] output csv
 
 	Side effect: create a csv file in the output directory.
 	"""
-	logger.debug('processMultipartDividendReceivableReport(): {0}, {1}'.format(
-				date, portfolio))
-
-	return \
-	compose(
+	return compose(
 		partial( writeCsv
-			   , _getOutputFilename( outputDir, 'dividend_receivable'
-			   					   , date, portfolio)
+			   , _getOutputFilename(outputDir, 'fx_table', date, '')
 			   )
-	  , partial(chain, [_getDividendReceivableCsvHeaders()])
-	  , partial(map, partial(dictToValues, _getDividendReceivableCsvHeaders()))
-	  , getGenevaDividendReceivable
-	)(date, portfolio)
+	  , partial(chain, [_getFxTableCsvHeaders()])
+	  , partial(map, partial(dictToValues, _getFxTableCsvHeaders()))
+	  , getFxTable
+	)(date)
 
 
 
@@ -202,6 +171,11 @@ def _getFactsetPositionCsvHeaders():
 
 
 
+def _getFxTableCsvHeaders():
+	return ('Date', 'Portfolio', 'Currency', 'TargetCurrency', 'ExchangeRate')
+
+
+
 """
 	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
 		=> [String] output csv
@@ -213,7 +187,36 @@ _writeFactPositionToCsv = partial(
   , getPositions
   , _getFactsetPositionCsvHeaders()
   , 'factset_position'
-  , 
+)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create position csv file in the output directory.
+"""
+_writeGenevaPositionCsv = partial(
+	_doCsvOutput
+  , getGenevaPositions
+  , _getTaxlotCsvHeaders()
+  , 'positions'
+)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create position csv file in the output directory.
+"""
+_writeDividendReceivableCsv = partial(
+	_doCsvOutput
+  , getGenevaDividendReceivable
+  , _getDividendReceivableCsvHeaders()
+  , 'dividend_receivable'
 )
 
 
@@ -230,9 +233,8 @@ if __name__ == "__main__":
 	parser.add_argument('date', metavar='date', type=str, help="position date (yyyy-mm-dd)")
 	parser.add_argument('portfolio', metavar='portfolio', type=str, help="portfolio id")
 
-	# print(processMultipartTaxlotReport('', parser.parse_args().date, parser.parse_args().portfolio))
-	# print(processMultipartCashLedgerReport('', parser.parse_args().date, parser.parse_args().portfolio))
-	# print(processMultipartDividendReceivableReport('', parser.parse_args().date, parser.parse_args().portfolio))
+	# print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
+	# print(_writeDividendReceivableCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(getSecurityIdAndType())
 	# print(getPortfolioNames())
 
@@ -243,3 +245,5 @@ if __name__ == "__main__":
 		  , parser.parse_args().portfolio
 		)
 	)
+
+	# print(writeFxTableCsv(getOutputDirectory(), parser.parse_args().date))

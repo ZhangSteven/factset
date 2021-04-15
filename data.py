@@ -7,12 +7,13 @@ from factset.geneva_position import readMultipartTaxlotReport \
 								, readMultipartCashLedgerReport
 from factset.utility import getDataDirectory
 from steven_utils.file import getFiles
-from steven_utils.utility import mergeDict
+from steven_utils.utility import mergeDict, allEquals
 from steven_utils.excel import getRawPositionsFromFile
 from toolz.functoolz import compose
 from toolz.itertoolz import groupby as groupbyToolz
 from toolz.dicttoolz import valmap
 from functools import lru_cache, partial
+from itertools import filterfalse
 from os.path import join
 import logging, re
 logger = logging.getLogger(__name__)
@@ -39,16 +40,52 @@ def _getGenevaPortfolioData(dataGetterFunc, date, portfolio):
 
 
 
-def getFX(currency, targetCurrency):
+@lru_cache(maxsize=3)
+def getFxTable(date):
 	"""
-	[String] currency, [String] target currency
-		=> [Float] exchange rate
+	[String] date (yyyy-mm-dd)
+		=> [List] ([Dictionary]) FX Entries
 
-	Returns how many units of target currency is exchanged with
-	one unit of currency. E.g., getFX('USD', 'HKD') -> 7.8
+	Retrieve FX rate from tax lot report. Usually FX rates across
+	different portfolios are the same, but there are occassions that
+	they are different. So there is a checker for such inconsistency
+	and give warnings in the log.
 	"""
-	# FIXME: implement it
-	return 1.0
+	def checkGroupConsistency(group):
+		if not allEquals(map(lambda p: p['ExchangeRate'], group)):
+			logger.warning('getFxTable(): inconsistency: {0}'.format(group))
+
+		return group
+	# End of checkGroupConsistency
+
+	def checkInconsistency(positions):
+		compose(
+			partial(valmap, checkGroupConsistency)
+		  , partial( groupbyToolz
+		  		   , lambda p: (p['Date'], p['Currency'], p['TargetCurrency'])
+		  		   )
+		)(positions)
+		return positions
+
+
+	return compose(
+		checkInconsistency
+	  , list
+	  , partial( map
+			   , lambda p: { 'Date': p['PeriodEndDate']
+			   			   , 'Portfolio': p['Portfolio']
+			   			   , 'Currency': p['InvestID']
+			   			   , 'TargetCurrency': p['BookCurrency']
+			   			   , 'ExchangeRate': p['MarketPrice']
+			   			   }
+			   )
+	  , partial(filterfalse, lambda p: p['MarketPrice'] == 'NA')
+	  , partial(filterfalse, lambda p: p['BookCurrency'] == p['InvestID'])
+	  , partial( filter
+	  		   , lambda p: p['ThenByDescription'] == 'Cash and Equivalents'
+	  		   )
+	  , lambda date: getGenevaPositions(date, 'all')
+	)(date)
 
 
 
