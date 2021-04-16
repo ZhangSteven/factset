@@ -6,7 +6,9 @@ Process Geneva data for FactSet upload.
 ## Todo
 1. Add NAV cross checking after position generated.
 
-2. Add test cases for tax lot, dividend receivable, and factset position.
+2. Add date cross checking, date from file name and date within the positions.
+
+3. Add test cases for tax lot, dividend receivable, and factset position.
 
 
 ## Fund Accounting

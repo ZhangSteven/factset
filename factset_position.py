@@ -320,6 +320,19 @@ def _getUnderlyingId(position):
 
 
 
+def _getAverageCumulativeCost(position):
+	assetClass, assetType = _getAssetClassAndType(position)
+
+	if assetClass == 'Cash':
+		return 1.0
+	elif assetClass == 'Equity':
+		return position['UnitCost']
+	else:
+		logger.error('_getUnderlyingId(): not supported')
+		raise ValueError
+
+
+
 def _changeDateFormat(dt):
 	"""
 	[String] dt (yyyy-mm-dd) => [String] yyyymmdd
@@ -421,10 +434,11 @@ def _factsetPosition(dividendReceivable, position):
 	, 'Per Share Principal': _getPerSharePrincipal(position)
 	, 'Per Share Income': _getPerShareIncome(dividendReceivable, position)
 	, 'Total Cost': _getTotalCost(position)
-	, 'Ending Market Value': _getEndingMarketValue(position)
-	, 'Strategy': _getStrategy(position)
 	, 'Contract Size': _getContractSize(position)
 	, 'Underlying ID': _getUnderlyingId(position)
+	, 'Ending Market Value': _getEndingMarketValue(position)
+	, 'Strategy': _getStrategy(position)
+	, 'Average Cumulative Cost': _getAverageCumulativeCost(position)
 	}
 
 
@@ -438,17 +452,6 @@ def getPositions(date, portfolio):
 	"""
 	logger.debug('getPositions(): date={0}, portfolio={1}'.format(date, portfolio))
 	
-	# def takeOutDividendReceivableCash(positions):
-	# 	"""
-	# 	[Iterable] positions => [Iterable] positions
-	# 	"""
-	# 	return filterfalse(
-	# 		lambda p: _getGenevaInvestmentType(p) == 'Cash and Equivalents' \
-	# 					and 'DividendsReceivable' in _getSecurityName(p)
-	# 	  , positions
-	# 	)
-	# End of takeOutDividendReceivableCash()
-
 	dividendReceivable = compose(
 		dict
 	  , partial(map, lambda p: ((p['Portfolio'], p['Investment']), p))

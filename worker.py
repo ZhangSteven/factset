@@ -166,7 +166,7 @@ def _getFactsetPositionCsvHeaders():
 	( 'Portfolio Name', 'Portfolio Description', 'Date', 'Symbol', 'Security Name'
 	, 'Asset Class', 'Asset Type', 'Shares', 'Price', 'Price ISO', 'Per Share Accrued Interest'
 	, 'Per Share Principal', 'Per Share Income', 'Underlying ID', 'Total Cost', 'Contract Size'
-	, 'Ending Market Value', 'Strategy'
+	, 'Ending Market Value', 'Strategy', 'Average Cumulative Cost'
 	)
 
 
