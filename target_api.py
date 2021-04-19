@@ -102,6 +102,16 @@ def getGenevaDividendReceivable(date, portfolio):
 
 
 
+def getGenevaPurchaseSales(date, portfolio):
+	"""
+	[String] date (yyyy-mm-dd),
+	[String] portfolio id
+		=> [List] ([Dictionary] dividend receivable position)
+	"""
+	return []
+
+
+
 def getGenevaFX(date, portfolio, currency, targetCurrency):
 	"""
 	[String] date (yyyy-mm-dd),
