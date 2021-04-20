@@ -109,6 +109,16 @@ def _updateFields(fields, positions):
 
 
 
+def _addMetaDataToPosition(fields, positions, metaData):
+	"""
+	[Iterable] positions, [Dictionary] metaData
+		=> [Iterable] positions
+	"""
+	data = {key: metaData.get(key, '') for key in fields}
+	return map(lambda p: mergeDict(p, data), positions)
+
+
+
 def _consolidateTaxlotPositions(positions):
 	"""
 	[Iterable] positions => [Iterable] positions
@@ -183,21 +193,6 @@ def _readTaxlotReportFromLines(lines):
 		return positions, metaData
 
 
-	def addMetaDataToPosition(positions, metaData):
-		"""
-		[Iterable] positions, [Dictionary] metaData
-			=> [Iterable] positions
-		"""
-		data = { 'Portfolio': metaData['Portfolio']
-			   , 'PeriodEndDate': metaData['PeriodEndDate']
-			   , 'KnowledgeDate': metaData['KnowledgeDate']
-			   , 'BookCurrency' : metaData['BookCurrency']
-			   }
-
-		return map(lambda p: mergeDict(p, data), positions)
-	# End of addMetaDataToPosition()
-
-
 	def addInvestId(position):
 		"""
 		[Dictionary] position => [Dictionary] position
@@ -225,7 +220,11 @@ def _readTaxlotReportFromLines(lines):
 			   			  )
 						)
 			   )
-	  , lambda t: addMetaDataToPosition(t[0], t[1])
+	  , lambda t: _addMetaDataToPosition(
+	  				  ('Portfolio', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency')
+	  				, t[0]
+	  				, t[1]
+	  				)
 	  , lambda t: lognContinue(t[0], t[1])
 	  , readTxtReportFromLines
 	)(lines)
@@ -242,22 +241,6 @@ def _readCashLedgerReportFromLines(lines):
 		return positions, metaData
 
 
-	def addMetaDataToPosition(positions, metaData):
-		"""
-		[Iterable] positions, [Dictionary] metaData
-			=> [Iterable] positions
-		"""
-		data = { 'Portfolio': metaData.get('Portfolio', '')
-			   , 'PeriodStartDate': metaData.get('PeriodStartDate', '')
-			   , 'PeriodEndDate': metaData.get('PeriodEndDate', '')
-			   , 'KnowledgeDate': metaData.get('KnowledgeDate', '')
-			   , 'BookCurrency' : metaData.get('BookCurrency', '')
-			   }
-
-		return map(lambda p: mergeDict(p, data), positions)
-	# End of addMetaDataToPosition()
-
-
 	return \
 	compose(
 		partial( map
@@ -272,49 +255,15 @@ def _readCashLedgerReportFromLines(lines):
 			   			  )
 						)
 			   )
-	  , lambda t: addMetaDataToPosition(t[0], t[1])
+	  , lambda t: _addMetaDataToPosition(
+	  				  ( 'Portfolio', 'PeriodEndDate', 'PeriodStartDate'
+	  				  , 'KnowledgeDate', 'BookCurrency')
+	  				, t[0]
+	  				, t[1]
+	  				)
 	  , lambda t: lognContinue(t[0], t[1])
 	  , readTxtReportFromLines
 	)(lines)
-
-
-
-# def _consolidateDividendReceivable(positions):
-# 	"""
-# 	[Iterable] ([Dictionary]) positions => [Iterable] positions
-
-# 	Consolidate positions of the same security into one.
-# 	"""
-# 	def checkConsistency(group):
-# 		logger.debug('_consolidateDividendReceivable(): {0}'.format(group[0]['Investment']))
-# 		if allEquals(map(lambda p: (p['LocalCurrency'], p['LocalPerShareAmount']), group)):
-# 			return group
-# 		else:
-# 			logger.error('_consolidateDividendReceivable(): inconsistency: {0}'.format(group))
-# 			raise ValueError
-
-
-# 	def consolidate(group):
-# 		return mergeDict(
-# 			group[0]
-# 		  , _updateFields( ( 'ExDateQuantity', 'LocalGrossDividendRecPay'
-# 		  				   , 'LocalWHTaxPayable', 'LocalNetDividendRecPay'
-# 		  				   , 'BookGrossDividendRecPay', 'BookWHTaxPayable'
-# 		  				   , 'BookNetDividendRecPay', 'UnrealizedFXGainLoss'
-# 		  				   , 'LocalReclaimReceivable', 'BookReclaimReceivable'
-# 		  				   , 'LocalReliefReceivable', 'BookReliefReceivable'
-# 		  				   )
-# 		  				 , group
-# 		  				 )
-# 		)
-# 	# End of consolidate()
-
-# 	return compose(
-# 		lambda d: d.values()
-# 	  , partial(valmap, consolidate)
-# 	  , partial(valmap, checkConsistency)
-# 	  , partial(groupbyToolz, lambda p: p['Investment'])
-# 	)(positions)
 
 
 
@@ -327,20 +276,6 @@ def _readDividendReceivableReportFromLines(lines):
 						metaData.get('Portfolio', '')))
 		return positions, metaData
 
-
-	def addMetaDataToPosition(positions, metaData):
-		"""
-		[Iterable] positions, [Dictionary] metaData
-			=> [Iterable] positions
-		"""
-		data = { 'Portfolio': metaData.get('Portfolio', '')
-			   , 'PeriodEndDate': metaData.get('PeriodEndDate', '')
-			   , 'KnowledgeDate': metaData.get('KnowledgeDate', '')
-			   , 'BookCurrency' : metaData.get('BookCurrency', '')
-			   }
-
-		return map(lambda p: mergeDict(p, data), positions)
-	# End of addMetaDataToPosition()
 
 	def checkGroupConsistency(group):
 		if not allEquals(map(lambda p: (p['LocalCurrency'], p['LocalPerShareAmount']), group)):
@@ -379,7 +314,42 @@ def _readDividendReceivableReportFromLines(lines):
 						  )
 						)
 			   )
-	  , lambda t: addMetaDataToPosition(t[0], t[1])
+	  , lambda t: _addMetaDataToPosition(
+	  				  ( 'Portfolio', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency')
+	  				, t[0]
+	  				, t[1]
+	  				)
+	  , lambda t: lognContinue(t[0], t[1])
+	  , readTxtReportFromLines
+	)(lines)
+
+
+
+def _readNavReportFromLines(lines):
+	"""
+	[Iterable] ([List]) lines => [Iterable] ([Dictionary] NAV)
+	"""
+	def lognContinue(positions, metaData):
+		logger.debug('_readNavReportFromLines(): Portfolio {0}'.format(
+					metaData.get('Portfolio', '')))
+		return positions, metaData
+
+
+	return \
+	compose(
+		partial( map
+			   , partial( updateNumberForFields
+			   			, ( 'SumBal', 'Balance', 'SumBal5', 'SumBal4'
+			   			  , 'SumBal3', 'SumBal3', 'SumBal2', 'SumBal1'
+						  )
+						)
+			   )
+	  , lambda t: _addMetaDataToPosition(
+	  				  ( 'Portfolio', 'PeriodEndDate', 'PeriodStartDate'
+	  				  , 'KnowledgeDate', 'BookCurrency')
+	  				, t[0]
+	  				, t[1]
+	  				)
 	  , lambda t: lognContinue(t[0], t[1])
 	  , readTxtReportFromLines
 	)(lines)
@@ -446,4 +416,18 @@ readMultipartCashLedgerReport = partial(
 readMultipartDividendReceivableReport = partial(
 	_readMultipartReport
   , _readDividendReceivableReportFromLines
+)
+
+
+
+"""
+	[String] encoding, [String] delimiter, [String] filename, 
+		=> [Iterable] ([Dictionary] position)
+
+	Read a multipart dividend receivable report (txt format), enrich it 
+	with meta data, and return all positions.
+"""
+readMultipartNavReport = partial(
+	_readMultipartReport
+  , _readNavReportFromLines
 )

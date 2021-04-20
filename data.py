@@ -4,7 +4,8 @@
 # 
 from factset.geneva_position import readMultipartTaxlotReport \
 								, readMultipartDividendReceivableReport \
-								, readMultipartCashLedgerReport
+								, readMultipartCashLedgerReport \
+								, readMultipartNavReport
 from factset.utility import getDataDirectory
 from steven_utils.file import getFiles
 from steven_utils.utility import mergeDict, allEquals
@@ -166,9 +167,17 @@ def _getGenevaFileWithDate(func, date):
 	Using the file name pattern function to filter files from the
 	data directory, then get the file with the correct end date.
 	"""
+	def show(L):
+		for x in L:
+			print(x)
+
+		return L
+
+
 	return compose(
 		lambda L: join(getDataDirectory(), L[0])
 	  , _checkOnlyOne
+  	  , show
 	  , list
 	  , partial(filter, lambda fn: _getEndDateFromFilename(fn) == date)
 	  , partial(filter, func)
@@ -204,6 +213,13 @@ _getGenevaDividendReceivableFile = partial(
 _getGenevaCashLedgerFile = partial(
 	_getGenevaFileWithDate
   , lambda fn: fn.lower().startswith('all funds cash ledger')
+)
+
+
+
+_getGenevaNavFile = partial(
+	_getGenevaFileWithDate
+  , lambda fn: fn.lower().startswith('all funds nav')
 )
 
 
@@ -282,6 +298,20 @@ def _getGenevaCashLedgerFromFile(date):
 
 
 
+@lru_cache(maxsize=3)
+def _getGenevaNavFromFile(date):
+	"""
+	[String] date (yyyy-mm-dd) => [List] ([Dictionary]) positions
+	"""
+	logger.debug('_getGenevaNavFromFile(): {0}'.format(date))
+	return compose(
+		list
+	  , partial(readMultipartNavReport, 'utf-16', '\t')
+	  , _getGenevaNavFile
+	)(date)
+
+
+
 def _getGenevaSecurityIdAndType():
 	"""
 	[Dictionary] ([String] invest id -> [Dictionary] security properties)
@@ -348,10 +378,29 @@ getGenevaCashLedger = partial(
 """
 	[String] date (yyyy-mm-dd), [String] portfolio
 		=> [List] ([Dictionary]) Geneva dividend receivable
-
-	consolidate based on "investment description".
 """
 getGenevaDividendReceivable = partial(
 	_getGenevaPortfolioData
   , _getGenevaDividendReceivableFromFile
 )
+
+
+
+"""
+	[String] date (yyyy-mm-dd), [String] portfolio
+		=> ([String] book currency, [Float] portfolio NAV)
+"""
+def getGenevaNav(date, portfolio):
+	positions = list(
+		partial(
+			_getGenevaPortfolioData
+		  , _getGenevaNavFromFile
+		)(date, portfolio)
+	)
+
+	if len(positions) == 0:
+		logger.error('getGenevaNav(): {0}, {1} NAV not found'.format(
+					date, portfolio))
+		raise ValueError
+
+	return (positions[0]['BookCurrency'], positions[0]['SumBal1'])

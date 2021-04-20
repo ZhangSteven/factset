@@ -4,7 +4,7 @@
 # 
 from factset.data import getGenevaPositions, getGenevaDividendReceivable \
 						, getGenevaCashLedger, getSecurityIdAndType \
-						, getPortfolioNames, getFxTable
+						, getPortfolioNames, getFxTable, getGenevaNav
 from factset.factset_position import getPositions
 from factset.utility import getOutputDirectory
 from steven_utils.utility import writeCsv, dictToValues
@@ -12,6 +12,7 @@ from toolz.functoolz import compose
 from functools import partial
 from itertools import chain
 from os.path import join
+from datetime import datetime, timedelta
 import logging
 logger = logging.getLogger(__name__)
 
@@ -212,6 +213,21 @@ _writeGenevaPositionCsv = partial(
 
 	Side effect: create position csv file in the output directory.
 """
+_writeGenevaCashLedgerCsv = partial(
+	_doCsvOutput
+  , getGenevaCashLedger
+  , _getCashLedgerCsvHeaders()
+  , 'cash_ledger'
+)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create position csv file in the output directory.
+"""
 _writeDividendReceivableCsv = partial(
 	_doCsvOutput
   , getGenevaDividendReceivable
@@ -235,15 +251,28 @@ if __name__ == "__main__":
 
 	# print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeDividendReceivableCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
+	# print(_writeGenevaCashLedgerCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
+	# print(getGenevaNav(parser.parse_args().date, parser.parse_args().portfolio))
 	# print(getSecurityIdAndType())
 	# print(getPortfolioNames())
 
-	print(
-		_writeFactPositionToCsv(
-			getOutputDirectory()
-		  , parser.parse_args().date
-		  , parser.parse_args().portfolio
+	# print(
+	# 	_writeFactPositionToCsv(
+	# 		getOutputDirectory()
+	# 	  , parser.parse_args().date
+	# 	  , parser.parse_args().portfolio
+	# 	)
+	# )
+
+	startingDay = datetime(2021,3,1)
+	for d in range(31):
+		print((startingDay + timedelta(days=d)).strftime('%Y-%m-%d'))
+		print(
+			_writeFactPositionToCsv(
+				getOutputDirectory()
+			  , (startingDay + timedelta(days=d)).strftime('%Y-%m-%d')
+			  , '12307'
+			)
 		)
-	)
 
 	# print(writeFxTableCsv(getOutputDirectory(), parser.parse_args().date))

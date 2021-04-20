@@ -4,7 +4,7 @@
 # 
 from factset.data import getGenevaPositions, getSecurityIdAndType \
 						, getPortfolioNames, getGenevaDividendReceivable \
-						, getFxTable
+						, getFxTable, getGenevaNav
 from steven_utils.utility import mergeDict
 from steven_utils.iter import firstOf
 from toolz.functoolz import compose
@@ -152,7 +152,7 @@ def _getMarketPrice(position):
 		=> [Float] price, or [String] 'NA'
 	"""
 	assetClass, assetType = _getAssetClassAndType(position)
-	if assetClass == 'Cash':
+	if (assetClass, assetType) == ('Cash', 'Zero Interest Cash'):
 		return 1.0
 
 	return position['MarketPrice']
@@ -164,6 +164,14 @@ def _getLocalCurrency(position):
 	[Dictionary] geneva position => [String] local currency
 	"""
 	return getSecurityIdAndType()[_getInvestId(position)]['BifurcationCurrency Code']
+
+
+
+def _getBookCurrency(position):
+	"""
+	[Dictionary] geneva position => [String] portfolio book currency
+	"""
+	return position['BookCurrency']
 
 
 
@@ -242,8 +250,19 @@ def _getTotalCost(position):
 	elif (assetClass, assetType) == ('Cash', 'Zero Interest Cash'):
 		return _getQuantity(position)
 	else:
-		logger.error('_getEndingMarketValue(): not implemented')
+		logger.error('_getTotalCost(): not implemented')
 		raise ValueError
+
+
+
+def _getMarketValueBook(position):
+	"""
+	[Dictionary] geneva position => [Float] market value
+
+	This is the market value in portfolio's book currency, including
+	accrued interest.
+	"""
+	return position['MarketValueBook'] + position['AccruedInterestBook']
 
 
 
@@ -252,16 +271,15 @@ def _getEndingMarketValue(position):
 	[Dictionary] geneva position => [Float] ending market value
 	"""
 	assetClass, assetType = _getAssetClassAndType(position)
-	if assetClass == 'Cash':
+	if (assetClass, assetType) == ('Cash', 'Zero Interest Cash'):
 		return _getQuantity(position)
-	
-	if _getMarketPrice(position) == 'NA':
-		return 'NA'
 
 	if assetClass in ('Equity', 'Fund'):
-		return _getQuantity(position) * _getMarketPrice(position)
+		return _getMarketValueBook(position)*_getFxRate(
+					_getPositionDate(position), _getPortfolioCode(position)
+				  , _getBookCurrency(position), _getLocalCurrency(position))
 	else:
-		logger.error('_getEndingMarketValue(): not supported')
+		logger.error('_getEndingMarketValue(): not implemented')
 		raise ValueError
 
 
@@ -434,10 +452,35 @@ def _factsetPosition(dividendReceivable, position):
 
 
 
+def _checkNavConsistency(date, portfolio, positions):
+	"""
+	[Float] nav,
+	[String] date (yyyy-mm-dd),
+	[String] portfolio,
+	[List] factset positions
+		=> [List] factset positions
+	"""
+	logger.debug('checkNavConsistency(): {0}, {1}'.format(date, portfolio))
+
+	navCurrency, nav = getGenevaNav(date, portfolio)
+	s = sum(map( lambda p: p['Ending Market Value'] * _getFxRate(date
+					, portfolio, p['Price ISO'], navCurrency)
+			   , positions
+			   ))
+
+	if abs(nav - s)/nav < 0.00001:
+		return positions
+	else:
+		logger.error('checkNavConsistency(): {0}, {1}, {2}, {3}'.format(
+					date, portfolio, nav, s))
+		raise ValueError
+
+
+
 def getPositions(date, portfolio):
 	"""
 	[String] date (yyyy-mm-dd), [String] portfolio
-		=> [Iterable] ([Dictionary]) factset positions
+		=> [List] ([Dictionary]) factset positions
 
 	Note: portfolio cannot be 'all', must be a portfolio code.
 	"""
@@ -451,6 +494,11 @@ def getPositions(date, portfolio):
 	)(date, portfolio)
 
 	return compose(
-		partial(map, partial(_factsetPosition, dividendReceivable))
+		partial(_checkNavConsistency, date, portfolio)
+	  , list
+	  , partial(map, partial(_factsetPosition, dividendReceivable))
 	  , getGenevaPositions
 	)(date, portfolio)
+
+
+
