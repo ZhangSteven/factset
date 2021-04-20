@@ -37,16 +37,8 @@ def getFactsetSecurityInfo(date, portfolio):
 
 
 """
-This part the API from the database module
+Database API
 """
-def getPortfolioDescription(portfolio):
-	"""
-	[String] portfolio id => [String] portfolio description
-	"""
-	return ''
-
-
-
 def getSedolFromGenevaId(gid):
 	"""
 	[String] geneva investment id => [String] SEDOL code
@@ -77,7 +69,7 @@ def getFuturesInfoFromGenevaId(gid):
 
 
 """
-This part the API from the Geneva data module
+Geneva Data API
 """
 def getGenevaPositions(date, portfolio):
 	"""
@@ -117,3 +109,11 @@ def getGenevaFX(date, portfolio, currency, targetCurrency):
 	is some number near 7.8.
 	"""
 	return 1.0
+
+
+
+def getPortfolioDescription(portfolio):
+	"""
+	[String] portfolio id => [String] portfolio description
+	"""
+	return ''

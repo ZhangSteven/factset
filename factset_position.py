@@ -56,6 +56,14 @@ def _getQuantity(position):
 
 
 
+def _getUnitCost(position):
+	"""
+	[Dictionary] geneva position => [Float] quantity
+	"""
+	return position['UnitCost']
+
+
+
 def _getGenevaInvestmentType(position):
 	"""
 	[Dictionary] geneva position => [String] Geneva Investment Type
@@ -74,25 +82,6 @@ def _getCashSymbol(position):
 	else:
 		logger.error('_getCashSymbol(): {0} not supported'.format(assetType))
 		raise ValueError
-
-
-
-# def _getExchangeLocation(position):
-# 	"""
-# 	[Dictionary] geneva position => [String] equity exchange location
-# 	"""
-# 	equitySuffix = _getInvestId(position).split()[-1]
-
-# 	if equitySuffix in ('C1', 'C2', 'CH'):
-# 		return 'CN'
-# 	elif equitySuffix in ('HK', 'US'):
-# 		return equitySuffix
-# 	elif equitySuffix == 'SP':
-# 		return 'SG'
-# 	else:
-# 		logger.error('_getExchangeLocation(): {0} not supported'.format(
-# 					_getInvestId(position)))
-# 		raise ValueError
 
 
 
@@ -248,11 +237,13 @@ def _getTotalCost(position):
 	[Dictionary] geneva position => [Float] total cost
 	"""
 	assetClass, assetType = _getAssetClassAndType(position)
-	if assetClass == 'Futures':
+	if assetClass == 'Equity':
+		return _getQuantity(position) * _getUnitCost(position)
+	elif (assetClass, assetType) == ('Cash', 'Zero Interest Cash'):
+		return _getQuantity(position)
+	else:
 		logger.error('_getEndingMarketValue(): not implemented')
 		raise ValueError
-
-	return 'NA'
 
 
 
@@ -326,7 +317,7 @@ def _getAverageCumulativeCost(position):
 	if assetClass == 'Cash':
 		return 1.0
 	elif assetClass == 'Equity':
-		return position['UnitCost']
+		return _getUnitCost(position)
 	else:
 		logger.error('_getUnderlyingId(): not supported')
 		raise ValueError
