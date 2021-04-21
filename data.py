@@ -5,7 +5,8 @@
 from factset.geneva_position import readMultipartTaxlotReport \
 								, readMultipartDividendReceivableReport \
 								, readMultipartCashLedgerReport \
-								, readMultipartNavReport
+								, readMultipartNavReport \
+								, readMultipartPurchaseSalesReport
 from factset.utility import getDataDirectory
 from steven_utils.file import getFiles
 from steven_utils.utility import mergeDict, allEquals
@@ -217,6 +218,16 @@ _getGenevaCashLedgerFile = partial(
 
 
 
+""" 
+	[String] date => [String] cash ledger file 
+"""
+_getGenevaPurchaseSalesFile = partial(
+	_getGenevaFileWithDate
+  , lambda fn: fn.lower().startswith('all funds purchase sales')
+)
+
+
+
 _getGenevaNavFile = partial(
 	_getGenevaFileWithDate
   , lambda fn: fn.lower().startswith('all funds nav')
@@ -312,6 +323,20 @@ def _getGenevaNavFromFile(date):
 
 
 
+@lru_cache(maxsize=3)
+def _getGenevaPurchaseSalesFromFile(date):
+	"""
+	[String] date (yyyy-mm-dd) => [List] ([Dictionary]) positions
+	"""
+	logger.debug('_getGenevaNavFromFile(): {0}'.format(date))
+	return compose(
+		list
+	  , partial(readMultipartPurchaseSalesReport, 'utf-16', '\t')
+	  , _getGenevaPurchaseSalesFile
+	)(date)
+
+
+
 def _getGenevaSecurityIdAndType():
 	"""
 	[Dictionary] ([String] invest id -> [Dictionary] security properties)
@@ -371,6 +396,17 @@ getGenevaPositions = partial(
 getGenevaCashLedger = partial(
 	_getGenevaPortfolioData
   , _getGenevaCashLedgerFromFile
+)
+
+
+
+"""
+	[String] date (yyyy-mm-dd), [String] portfolio
+		=> [List] ([Dictionary]) Geneva Purchase Sales Positions
+"""
+getGenevaPurchaseSales = partial(
+	_getGenevaPortfolioData
+  , _getGenevaPurchaseSalesFromFile
 )
 
 

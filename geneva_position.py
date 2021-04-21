@@ -356,6 +356,42 @@ def _readNavReportFromLines(lines):
 
 
 
+def _readPurchaseSalesReportFromLines(lines):
+	"""
+	[Iterable] ([List]) lines => [Iterable] ([Dictionary] NAV)
+	"""
+	def lognContinue(positions, metaData):
+		logger.debug('_readPurchaseSalesReportFromLines(): Portfolio {0}'.format(
+					metaData.get('Portfolio', '')))
+		return positions, metaData
+
+
+	return \
+	compose(
+		partial( map
+			   , partial( updateDateForFields
+			   			, ('ContractDate', 'TradeDate', 'SettleDate')
+			   			)
+			   )
+	  , partial( map
+			   , partial( updateNumberForFields
+			   			, ( 'Quantity', 'Price', 'SEC', 'LocalAmount'
+			   			  , 'BookAmount', 'Commission', 'Expenses', 'TotalBookAmount'
+						  )
+						)
+			   )
+	  , lambda t: _addMetaDataToPosition(
+	  				  ( 'Portfolio', 'PeriodEndDate', 'PeriodStartDate'
+	  				  , 'KnowledgeDate', 'BookCurrency')
+	  				, t[0]
+	  				, t[1]
+	  				)
+	  , lambda t: lognContinue(t[0], t[1])
+	  , readTxtReportFromLines
+	)(lines)
+
+
+
 def _readMultipartReport(mappingFunc, encoding, delimiter, file):
 	"""
 	[Func] ([Iterable] ([List]) lines => [Iterable] ([Dictionary] positions)),
@@ -424,10 +460,23 @@ readMultipartDividendReceivableReport = partial(
 	[String] encoding, [String] delimiter, [String] filename, 
 		=> [Iterable] ([Dictionary] position)
 
-	Read a multipart dividend receivable report (txt format), enrich it 
-	with meta data, and return all positions.
+	Read a multipart NAV report (txt format).
 """
 readMultipartNavReport = partial(
 	_readMultipartReport
   , _readNavReportFromLines
+)
+
+
+
+"""
+	[String] encoding, [String] delimiter, [String] filename, 
+		=> [Iterable] ([Dictionary] position)
+
+	Read a multipart purchase sales report (txt format), enrich it 
+	with meta data, and return all positions.
+"""
+readMultipartPurchaseSalesReport = partial(
+	_readMultipartReport
+  , _readPurchaseSalesReportFromLines
 )

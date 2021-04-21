@@ -4,7 +4,8 @@
 # 
 from factset.data import getGenevaPositions, getGenevaDividendReceivable \
 						, getGenevaCashLedger, getSecurityIdAndType \
-						, getPortfolioNames, getFxTable, getGenevaNav
+						, getPortfolioNames, getFxTable, getGenevaNav \
+						, getGenevaPurchaseSales
 from factset.factset_position import getPositions
 from factset.utility import getOutputDirectory
 from steven_utils.utility import writeCsv, dictToValues
@@ -148,6 +149,17 @@ def _getCashLedgerCsvHeaders():
 
 
 
+def _getPurchaseSalesCsvHeaders():
+	return \
+	( 'Portfolio', 'PeriodStartDate', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency'
+	, 'TradeDate', 'SettleDate', 'TranType', 'InvestID', 'Investment', 'CustodianAccount'
+	, 'Quantity', 'Price', 'SEC', 'LocalAmount', 'BookAmount', 'ContractDate', 'TranID'
+	, 'GenericInvestment', 'Broker', 'Trader', 'Commission', 'Expenses', 'LocalCurrency'
+	, 'TotalBookAmount'
+	)
+
+
+
 def _getDividendReceivableCsvHeaders():
 	return \
 	( 'Portfolio', 'PeriodEndDate', 'KnowledgeDate', 'BookCurrency'
@@ -228,6 +240,21 @@ _writeGenevaCashLedgerCsv = partial(
 
 	Side effect: create position csv file in the output directory.
 """
+_writeGenevaPurchaseSalesCsv = partial(
+	_doCsvOutput
+  , getGenevaPurchaseSales
+  , _getPurchaseSalesCsvHeaders()
+  , 'purchase_sales'
+)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create position csv file in the output directory.
+"""
 _writeDividendReceivableCsv = partial(
 	_doCsvOutput
   , getGenevaDividendReceivable
@@ -252,6 +279,7 @@ if __name__ == "__main__":
 	# print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeDividendReceivableCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeGenevaCashLedgerCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
+	print(_writeGenevaPurchaseSalesCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(getGenevaNav(parser.parse_args().date, parser.parse_args().portfolio))
 	# print(getSecurityIdAndType())
 	# print(getPortfolioNames())
@@ -264,15 +292,15 @@ if __name__ == "__main__":
 	# 	)
 	# )
 
-	startingDay = datetime(2021,3,1)
-	for d in range(31):
-		print((startingDay + timedelta(days=d)).strftime('%Y-%m-%d'))
-		print(
-			_writeFactPositionToCsv(
-				getOutputDirectory()
-			  , (startingDay + timedelta(days=d)).strftime('%Y-%m-%d')
-			  , '12307'
-			)
-		)
+	# startingDay = datetime(2021,3,1)
+	# for d in range(31):
+	# 	print((startingDay + timedelta(days=d)).strftime('%Y-%m-%d'))
+	# 	print(
+	# 		_writeFactPositionToCsv(
+	# 			getOutputDirectory()
+	# 		  , (startingDay + timedelta(days=d)).strftime('%Y-%m-%d')
+	# 		  , '12307'
+	# 		)
+	# 	)
 
 	# print(writeFxTableCsv(getOutputDirectory(), parser.parse_args().date))
