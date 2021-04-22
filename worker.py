@@ -279,7 +279,7 @@ if __name__ == "__main__":
 	# print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeDividendReceivableCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeGenevaCashLedgerCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
-	print(_writeGenevaPurchaseSalesCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
+	# print(_writeGenevaPurchaseSalesCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(getGenevaNav(parser.parse_args().date, parser.parse_args().portfolio))
 	# print(getSecurityIdAndType())
 	# print(getPortfolioNames())
@@ -292,7 +292,7 @@ if __name__ == "__main__":
 	# 	)
 	# )
 
-	# startingDay = datetime(2021,3,1)
+	startingDay = datetime(2021,3,1)
 	# for d in range(31):
 	# 	print((startingDay + timedelta(days=d)).strftime('%Y-%m-%d'))
 	# 	print(
@@ -303,4 +303,12 @@ if __name__ == "__main__":
 	# 		)
 	# 	)
 
+
+	positions = []
+	for d in range(31):
+		date = (startingDay + timedelta(days=d)).strftime('%Y-%m-%d')
+		_, nav = getGenevaNav(date, '12307')
+		positions = positions + [(date, nav)]
+
+	writeCsv('12307_nav_2021Mar.csv', chain([('date', 'nav')], positions))
 	# print(writeFxTableCsv(getOutputDirectory(), parser.parse_args().date))
