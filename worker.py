@@ -7,6 +7,7 @@ from factset.data import getGenevaPositions, getGenevaDividendReceivable \
 						, getPortfolioNames, getFxTable, getGenevaNav \
 						, getGenevaPurchaseSales
 from factset.factset_position import getPositions
+from factset.factset_transaction import get_transactions
 from factset.utility import getOutputDirectory
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
@@ -184,6 +185,16 @@ def _getFactsetPositionCsvHeaders():
 
 
 
+def _get_factset_transaction_csv_headers():
+	return \
+	( 'Portfolio Code', 'Date', 'Symbol', 'Asset Class', 'Asset Type'
+	, 'Transaction ID', 'Transaction Status', 'Trade Type', 'Price ISO'
+	, 'Quantity', 'Price', 'Gross Transaction Amount', 'Net Transaction Amount'
+	, 'Commissions and Fees', 'Settle Date', 'Broker'
+	)
+
+
+
 def _getFxTableCsvHeaders():
 	return ('Date', 'Portfolio', 'Currency', 'TargetCurrency', 'ExchangeRate')
 
@@ -200,6 +211,21 @@ _writeFactPositionToCsv = partial(
   , getPositions
   , _getFactsetPositionCsvHeaders()
   , 'factset_position'
+)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+"""
+_write_factset_transaction_to_csv = partial(
+	_doCsvOutput
+  , get_transactions
+  , _get_factset_transaction_csv_headers()
+  , 'factset_transaction'
 )
 
 
@@ -284,6 +310,12 @@ if __name__ == "__main__":
 	# print(getSecurityIdAndType())
 	# print(getPortfolioNames())
 
+	_write_factset_transaction_to_csv(
+		getOutputDirectory()
+	  , parser.parse_args().date
+	  , parser.parse_args().portfolio
+	)
+
 	# print(
 	# 	_writeFactPositionToCsv(
 	# 		getOutputDirectory()
@@ -292,7 +324,7 @@ if __name__ == "__main__":
 	# 	)
 	# )
 
-	startingDay = datetime(2021,3,1)
+	# startingDay = datetime(2021,3,1)
 	# for d in range(31):
 	# 	print((startingDay + timedelta(days=d)).strftime('%Y-%m-%d'))
 	# 	print(
@@ -304,11 +336,12 @@ if __name__ == "__main__":
 	# 	)
 
 
-	positions = []
-	for d in range(31):
-		date = (startingDay + timedelta(days=d)).strftime('%Y-%m-%d')
-		_, nav = getGenevaNav(date, '12307')
-		positions = positions + [(date, nav)]
+	# positions = []
+	# for d in range(31):
+	# 	date = (startingDay + timedelta(days=d)).strftime('%Y-%m-%d')
+	# 	_, nav = getGenevaNav(date, '12307')
+	# 	positions = positions + [(date, nav)]
 
-	writeCsv('12307_nav_2021Mar.csv', chain([('date', 'nav')], positions))
+	# writeCsv('12307_nav_2021Mar.csv', chain([('date', 'nav')], positions))
 	# print(writeFxTableCsv(getOutputDirectory(), parser.parse_args().date))
+

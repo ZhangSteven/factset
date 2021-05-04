@@ -342,7 +342,7 @@ def _getAverageCumulativeCost(position):
 
 
 
-def _changeDateFormat(dt):
+def changeDateFormat(dt):
 	"""
 	[String] dt (yyyy-mm-dd) => [String] yyyymmdd
 	"""
@@ -431,7 +431,7 @@ def _factsetPosition(dividendReceivable, position):
 	return \
 	{ 'Portfolio Name': _getPortfolioCode(position)
 	, 'Portfolio Description': _getPortfolioDescription(position)
-	, 'Date': _changeDateFormat(_getPositionDate(position))
+	, 'Date': changeDateFormat(_getPositionDate(position))
 	, 'Symbol': _getSecuritySymbol(position)
 	, 'Security Name': _getSecurityName(position)
 	, 'Asset Class': assetClass

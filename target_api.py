@@ -39,61 +39,124 @@ def getFactsetSecurityInfo(date, portfolio):
 """
 Database API
 """
-def getSedolFromGenevaId(gid):
+def get_security_basic_info(gid):
 	"""
-	[String] geneva investment id => [String] SEDOL code
+	[String] gid => [Dictonary] basic information, including Geneva
+	investment Id, Ticker, Geneva asset type and investment type, etc.
 
-	The database may not contain SEDOL code for investments other than the
-	equity type. So make sure the investment is equity type before calling 
-	this function.
+	If not found, raise Error: security info not found
 	"""
-	return ''
+	return {}
 
 
 
-def getLocalCurrencyFromGenevaId(gid):
+def add_security_basic_info(info):
 	"""
-	[String] geneva investment id => [String] local currency of the investment
+	[Dictonary] basic information, including Geneva	investment Id, 
+	Ticker, Geneva asset type and investment type, etc.
+
+	If security info already there, raise Error: 
+	security info exists
+
+	Otherwise, add the security basic info.
 	"""
-	return ''
+	pass
 
 
 
-def getFuturesInfoFromGenevaId(gid):
+def update_security_basic_info(info):
 	"""
-	[String] geneva investment id 
-		=> ([String] underlying security id, [Float] contract size) 
-	"""
-	return ('', 0.0)
+	[Dictonary] basic information, including Geneva	investment Id, 
+	Ticker, Geneva asset type and investment type, etc.
 
+	If not found, raise Error: security info not found
+	Otherwise, update the security basic info.
+	"""
+	pass
+
+
+
+def get_fixed_deposit_info(gid):
+	"""
+	[String] gid => [Dictonary] factset security id, starting date,
+	maturity date, etc.
+
+	If not found, raise Error: security info not found
+	"""
+	return {}
+
+
+
+def add_fixed_deposit_info(info):
+	"""
+	[Dictionary] fixed deposit information
+
+	If security info already there, raise Error: security info exists
+
+	Otherwise, add the fixed deposit info.
+	"""
+	pass
+
+
+
+def update_fixed_deposit_info(info):
+	"""
+	[Dictionary] fixed deposit information
+
+	If not found, raise Error: security info not found
+	Otherwise, update the fixed deposit info.
+	"""
+	pass
+
+
+
+def get_fx_forward_info(fx_name):
+	"""
+	[String] Geneva FX Forward name 
+		=> [Dictonary] factset security id, starting date, 
+						maturity date, base/term currency, etc.
+
+	If not found, raise Error: security info not found
+	"""
+	return {}
+
+
+
+def add_fx_forward_info(info):
+	"""
+	[Dictionary] FX Forward information
+
+	If security info already there, raise Error: security info exists
+
+	Otherwise, add the fixed deposit info.
+	"""
+	pass
+
+
+
+def update_fx_forward_info(info):
+	"""
+	[Dictionary] FX Forward information
+
+	If not found, raise Error: security info not found
+	Otherwise, update the fixed deposit info.
+	"""
+	pass
+
+
+
+def get_security_attributes(gid):
+	"""
+	[String] gid => [Dictonary] security attributes
+
+	If not found, raise Error: security info not found
+	"""
+	return {}
 
 
 """
 Geneva Data API
 """
-def getGenevaPositions(date, portfolio):
-	"""
-	[String] date (yyyy-mm-dd),
-	[String] portfolio id
-		=> [List] ([Dictionary] fact position)
-
-	This function will check the data before returning them. The list is 
-	always non-empty.
-	"""
-	return []
-
-
-
-def getGenevaDividendReceivable(date, portfolio):
-	"""
-	[String] date (yyyy-mm-dd),
-	[String] portfolio id
-		=> [List] ([Dictionary] dividend receivable position)
-	"""
-	return []
-
-
-
 def getGenevaCashLedger(date, portfolio):
 	"""
 	[String] date (yyyy-mm-dd),
@@ -112,28 +175,3 @@ def getGenevaPurchaseSales(date, portfolio):
 	"""
 	return []
 
-
-
-def getGenevaFX(date, portfolio, currency, targetCurrency):
-	"""
-	[String] date (yyyy-mm-dd),
-	[String] portfolio id
-	[String] currency,
-	[String] target currency
-		=> [Float] exchange rate
-
-	The function returns the exchange rate of converting one unit of 'currency'
-	to 'target currency'.
-
-	For example, if currency == USD, target currency == HKD, then exchange rate
-	is some number near 7.8.
-	"""
-	return 1.0
-
-
-
-def getPortfolioDescription(portfolio):
-	"""
-	[String] portfolio id => [String] portfolio description
-	"""
-	return ''
