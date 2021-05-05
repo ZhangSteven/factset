@@ -277,31 +277,32 @@ def _readDividendReceivableReportFromLines(lines):
 		return positions, metaData
 
 
-	def checkGroupConsistency(group):
-		if not allEquals(map(lambda p: (p['LocalCurrency'], p['LocalPerShareAmount']), group)):
-			logger.error('_readDividendReceivableReportFromLines(): inconsistency: {0}'.format(
-						group))
-			raise ValueError
+	# def checkGroupConsistency(group):
+	# 	if not allEquals(map(lambda p: (p['LocalCurrency'], p['LocalPerShareAmount']), group)):
+	# 		logger.error('_readDividendReceivableReportFromLines(): inconsistency: {0}'.format(
+	# 					group))
+	# 		raise ValueError
 
-		return group
-	# End of checkGroupConsistency()
+	# 	return group
+	# # End of checkGroupConsistency()
 
-	def checkConsistency(positions):
-		compose(
-			partial(valmap, checkGroupConsistency)
-		  , partial( groupbyToolz
-		  		   , lambda p: (p['Portfolio'], p['PeriodEndDate'], p['Investment'])
-		  		   )
-		)(positions)
+	# def checkConsistency(positions):
+	# 	compose(
+	# 		partial(valmap, checkGroupConsistency)
+	# 	  , partial( groupbyToolz
+	# 	  		   , lambda p: (p['Portfolio'], p['PeriodEndDate'], p['Investment'])
+	# 	  		   )
+	# 	)(positions)
 
-		return positions
-	# End of checkConsistency()
+	# 	return positions
+	# # End of checkConsistency()
 
 
 	return \
 	compose(
-		checkConsistency
-	  , list
+		# checkConsistency
+	 #  , list
+	  	_consolidate_dividend_receivable
 	  , partial(map, partial(updateDateForFields, ('EXDate', 'PayDate')))
 	  , partial(map, partial(updatePercentageForFields, ('WHTaxRate', )))
 	  , partial( map
@@ -322,6 +323,40 @@ def _readDividendReceivableReportFromLines(lines):
 	  , lambda t: lognContinue(t[0], t[1])
 	  , readTxtReportFromLines
 	)(lines)
+
+
+
+def _consolidate_dividend_receivable(positions):
+	"""
+	[Iterable] ([Dictionary] dvd receivable) 
+		=> [Iterable] ([Dictionary] dvd receivable)
+	"""
+	return \
+	compose(
+		lambda d: d.values()
+	  , partial(valmap, _consolidate_dividend_receivable_group)
+	  , partial( groupbyToolz
+			   , lambda p: (p['Portfolio'], p['PeriodEndDate'], p['Investment'])
+		  	   )
+	)(positions)
+
+
+
+def _consolidate_dividend_receivable_group(group):
+	"""
+	[List] ([Dictionary] dvd receivable) 
+		=> [Dictionary] consolidated dvd receivable position
+	"""
+	if not allEquals(map( lambda p: (p['EXDate'], p['ExDateQuantity'], p['LocalCurrency'])
+						, group)
+					):
+		raise ValueError('_consolidate_dividend_receivable_group(): inconsistency {0}'.format(
+						group[0]['Investment']))
+
+	return mergeDict( group[0]
+					, {'LocalGrossDividendRecPay': sum(map( lambda p: p['LocalGrossDividendRecPay']
+														  , group))}
+					)
 
 
 
