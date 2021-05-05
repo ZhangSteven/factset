@@ -12,7 +12,7 @@ from factset.utility import getOutputDirectory
 from steven_utils.utility import writeCsv, dictToValues
 from toolz.functoolz import compose
 from functools import partial
-from itertools import chain
+from itertools import chain, count
 from os.path import join
 from datetime import datetime, timedelta
 import logging
@@ -200,6 +200,37 @@ def _getFxTableCsvHeaders():
 
 
 
+def _get_transactions_month(date, portfolio):
+	"""
+	[String] date (yyyy-mm-dd), [String] portfolio
+		=> [List] ([Dictionary]) factset transactions
+
+	Generate transactions from month beginning to date
+	"""
+	return compose(
+		chain.from_iterable
+	  , partial(map, lambda dt: get_transactions(dt, portfolio))
+	  , _dates_from_month_beginning
+	)(date)
+
+
+
+def _dates_from_month_beginning(date):
+	"""
+	[String] date (yyyy-mm-dd) => [Iterable] ([String] date)
+
+	list of dates from the first day in the month, up to 'date'
+	"""
+	year, month = int(date.split('-')[0]), int(date.split('-')[1])
+	start_date = datetime(year, month, 1)
+
+	return compose(
+		partial(filter, lambda d: d <= date)
+	  , partial(map, lambda n: (start_date + timedelta(days=n)).strftime('%Y-%m-%d'))
+	)(range(31))
+
+
+
 """
 	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
 		=> [String] output csv
@@ -224,6 +255,21 @@ _writeFactPositionToCsv = partial(
 _write_factset_transaction_to_csv = partial(
 	_doCsvOutput
   , get_transactions
+  , _get_factset_transaction_csv_headers()
+  , 'factset_transaction'
+)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+"""
+_write_factset_transaction_month_to_csv = partial(
+	_doCsvOutput
+  , _get_transactions_month
   , _get_factset_transaction_csv_headers()
   , 'factset_transaction'
 )
@@ -310,19 +356,26 @@ if __name__ == "__main__":
 	# print(getSecurityIdAndType())
 	# print(getPortfolioNames())
 
-	_write_factset_transaction_to_csv(
-		getOutputDirectory()
-	  , parser.parse_args().date
-	  , parser.parse_args().portfolio
-	)
-
-	# print(
-	# 	_writeFactPositionToCsv(
-	# 		getOutputDirectory()
-	# 	  , parser.parse_args().date
-	# 	  , parser.parse_args().portfolio
-	# 	)
+	# _write_factset_transaction_to_csv(
+	# 	getOutputDirectory()
+	#   , parser.parse_args().date
+	#   , parser.parse_args().portfolio
 	# )
+	
+	# _write_factset_transaction_month_to_csv(
+	# 	getOutputDirectory()
+	#   , parser.parse_args().date
+	#   , parser.parse_args().portfolio
+	# )
+
+
+	print(
+		_writeFactPositionToCsv(
+			getOutputDirectory()
+		  , parser.parse_args().date
+		  , parser.parse_args().portfolio
+		)
+	)
 
 	# startingDay = datetime(2021,3,1)
 	# for d in range(31):
@@ -344,4 +397,3 @@ if __name__ == "__main__":
 
 	# writeCsv('12307_nav_2021Mar.csv', chain([('date', 'nav')], positions))
 	# print(writeFxTableCsv(getOutputDirectory(), parser.parse_args().date))
-
