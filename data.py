@@ -168,19 +168,20 @@ def _getGenevaFileWithDate(func, date):
 	Using the file name pattern function to filter files from the
 	data directory, then get the file with the correct end date.
 	"""
-	def show(L):
-		for x in L:
-			print(x)
+	# def show(L):
+	# 	for x in L:
+	# 		print(x)
 
-		return L
+	# 	import sys
+	# 	sys.exit(1)
 
 
 	return compose(
 		lambda L: join(getDataDirectory(), L[0])
 	  , _checkOnlyOne
-  	  , show
 	  , list
 	  , partial(filter, lambda fn: _getEndDateFromFilename(fn) == date)
+  	  # , show
 	  , partial(filter, func)
 	  , getFiles
 	  , getDataDirectory
