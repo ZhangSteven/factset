@@ -224,9 +224,7 @@ def _getPerShareDividend(dividendReceivable, position):
 
 	fx = _getFxRate( _getPositionDate(position), _getPortfolioCode(position)
 				   , dvdReceivable['LocalCurrency'], _getLocalCurrency(position))
-	perShareDvd = dvdReceivable['LocalPerShareAmount'] \
-					if isinstance(dvdReceivable['LocalPerShareAmount'], float) \
-					else dvdReceivable['LocalGrossDividendRecPay']/_getQuantity(position)
+	perShareDvd = dvdReceivable['LocalGrossDividendRecPay']/dvdReceivable['ExDateQuantity']
 
 	return perShareDvd * fx
 
