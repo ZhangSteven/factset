@@ -160,12 +160,12 @@ def _get_transactions_from_cash_ledger(date, portfolio):
 		=> [Iterable] ([Dictionary]) factset transactions
 	"""
 	funcMap = \
-		{ 'Dividend': _factset_dividend_transaction
-		, 'GrossAmountDividend': _factset_dividend_transaction
-		, 'ReturnOfCap': _factset_return_of_cap_transaction
+		{ 
 		}
 
-	ignored_types = ('AccountingRelated', )
+	ignored_types = ( 'AccountingRelated', 'ReturnOfCap', 'GrossAmountDividend'
+					, 'Dividend'
+					)
 
 	return compose(
 		partial(map, lambda t: t[0](t[1]))

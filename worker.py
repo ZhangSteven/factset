@@ -215,6 +215,21 @@ def _get_transactions_month(date, portfolio):
 
 
 
+def _get_positions_month(date, portfolio):
+	"""
+	[String] date (yyyy-mm-dd), [String] portfolio
+		=> [List] ([Dictionary]) factset transactions
+
+	Generate transactions from month beginning to date
+	"""
+	return compose(
+		chain.from_iterable
+	  , partial(map, lambda dt: getPositions(dt, portfolio))
+	  , _dates_from_month_beginning
+	)(date)
+
+
+
 def _dates_from_month_beginning(date):
 	"""
 	[String] date (yyyy-mm-dd) => [Iterable] ([String] date)
@@ -272,6 +287,21 @@ _write_factset_transaction_month_to_csv = partial(
   , _get_transactions_month
   , _get_factset_transaction_csv_headers()
   , 'factset_transaction'
+)
+
+
+
+"""
+	[String] output directory, [String] date (yyyy-mm-dd), [String] portfolio
+		=> [String] output csv
+
+	Side effect: create a csv file in the output directory.
+"""
+_write_factset_position_month_to_csv = partial(
+	_doCsvOutput
+  , _get_positions_month
+  , _getFactsetPositionCsvHeaders()
+  , 'factset_position'
 )
 
 
@@ -368,14 +398,20 @@ if __name__ == "__main__":
 	#   , parser.parse_args().portfolio
 	# )
 
+	# print(
+	# 	_writeFactPositionToCsv(
+	# 		getOutputDirectory()
+	# 	  , parser.parse_args().date
+	# 	  , parser.parse_args().portfolio
+	# 	)
+	# )
 
-	print(
-		_writeFactPositionToCsv(
-			getOutputDirectory()
-		  , parser.parse_args().date
-		  , parser.parse_args().portfolio
-		)
+	_write_factset_position_month_to_csv(
+		getOutputDirectory()
+	  , parser.parse_args().date
+	  , parser.parse_args().portfolio
 	)
+
 
 	# startingDay = datetime(2021,3,1)
 	# for d in range(31):
