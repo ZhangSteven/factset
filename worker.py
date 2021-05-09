@@ -378,7 +378,7 @@ if __name__ == "__main__":
 	parser.add_argument('date', metavar='date', type=str, help="position date (yyyy-mm-dd)")
 	parser.add_argument('portfolio', metavar='portfolio', type=str, help="portfolio id")
 
-	# print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
+	print(_writeGenevaPositionCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeDividendReceivableCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeGenevaCashLedgerCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
 	# print(_writeGenevaPurchaseSalesCsv(getOutputDirectory(), parser.parse_args().date, parser.parse_args().portfolio))
@@ -406,11 +406,11 @@ if __name__ == "__main__":
 	# 	)
 	# )
 
-	_write_factset_position_month_to_csv(
-		getOutputDirectory()
-	  , parser.parse_args().date
-	  , parser.parse_args().portfolio
-	)
+	# _write_factset_position_month_to_csv(
+	# 	getOutputDirectory()
+	#   , parser.parse_args().date
+	#   , parser.parse_args().portfolio
+	# )
 
 
 	# startingDay = datetime(2021,3,1)
